@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>النظام - Badel Soft Pro</title>
+<style>
+:root{--peach:#f6d7b2;--pink:#f8ecef;--lav:#bcbdf2;--lav2:#a3a5d8;--sel:#0078d7;--bd:#222}
+*{box-sizing:border-box;font-family:"Segoe UI",Tahoma,Arial,sans-serif;font-size:14px}
+body{margin:0;background:#dfe6f2;user-select:none;overflow:hidden}
+button{cursor:pointer}
+.titlebar{direction:ltr;display:flex;align-items:center;gap:8px;background:linear-gradient(#fff,#e9edf8);padding:4px 8px;border-bottom:1px solid #99a}
+.titlebar .ico{width:16px;height:16px;background:conic-gradient(#e33 0 25%,#fc0 0 50%,#3a7 0 75%,#38e 0)}
+.titlebar .t{flex:1;font-size:13px}
+.titlebar button{width:40px;height:26px;border:1px solid #bcd;background:#eef2fa;border-radius:4px}
+.menubar{display:flex;gap:2px;background:#eef1f8;padding:5px 10px;border-bottom:1px solid #ccd;font-weight:700}
+.menubar span{padding:4px 12px;cursor:pointer;border:1px solid transparent}
+.menubar span:hover{background:#d8e2f4}
+.menubar span.open{background:#fff;border-color:#889}
+.dd{position:fixed;background:#fff;border:1px solid #889;box-shadow:2px 5px 12px #0004;min-width:290px;z-index:200;padding:4px}
+.dd div{padding:7px 16px;text-align:right;font-weight:600;border:1px solid transparent;cursor:pointer}
+.dd div:hover{background:#cde1f7;border-color:#79a8d9}
+.toolbar{display:flex;background:#f3f4f8;padding:6px 4px;border-bottom:1px solid #bbc}
+.toolbar button{min-width:132px;height:88px;background:var(--peach);border:1px solid var(--bd);font-weight:700;font-size:15px}
+.toolbar .spacer{flex:1;background:var(--pink);border:1px solid #bbb}
+.vscroll{width:18px;background:#e8e8e8;border:1px solid #999;display:flex;flex-direction:column;justify-content:space-between}
+.vscroll b{background:#d4d4d4;text-align:center;font-size:9px;line-height:14px}
+.work{position:relative;height:calc(100vh - 214px);display:flex;overflow:hidden;
+ background:repeating-linear-gradient(0deg,transparent 0 89px,rgba(255,255,255,.18) 89px 90px),
+ repeating-linear-gradient(60deg,transparent 0 89px,rgba(255,255,255,.14) 89px 90px),
+ repeating-linear-gradient(-60deg,transparent 0 89px,rgba(255,255,255,.14) 89px 90px),
+ linear-gradient(160deg,#a8cbe9,#7fa8d8)}
+.sideL{width:470px;background:linear-gradient(#cfe6f5,#aed4ec);padding:22px}
+.logo{font-size:54px;font-weight:800;color:#e22;font-style:italic;line-height:1}
+.logo2{font-size:46px;font-weight:800;color:#067;font-style:italic}.logo2 small{font-size:14px}
+.logoAr{font-size:30px;color:#e22}
+.clock{width:170px;height:170px;border-radius:50%;background:#f4f6f8;border:10px solid #79aede;margin:26px 0;position:relative}
+.clock i{position:absolute;left:50%;top:50%;background:#223;transform-origin:0 50%;border-radius:4px}
+.clock .h{width:44px;height:5px;transform:rotate(200deg)}.clock .m{width:62px;height:4px;transform:rotate(320deg);background:#33a}.clock .s{width:70px;height:2px;transform:rotate(90deg);background:#c60}
+.contact{font-size:20px;font-weight:700;color:#0a5a8a;line-height:1.8}
+.sideR{flex:1;position:relative}
+.bigT{position:absolute;top:120px;right:30px;font-size:46px;font-weight:800;color:#123}
+.erp{position:absolute;top:330px;right:60px;font-size:60px;color:#c33;font-family:Georgia,serif;letter-spacing:6px}
+.oval{position:absolute;background:#fff;border-radius:50%;padding:14px 26px;font-weight:700;color:#07598a;text-align:center;box-shadow:0 2px 6px #0003;font-size:17px}
+/* اللوحة الوسطى (الملف / الاعدادات) */
+.cpanel{position:absolute;top:0;left:50%;transform:translateX(-50%);width:1470px;max-width:76vw;background:var(--pink);border:1px solid #889}
+.cpanel .head{background:#eef1f8;text-align:center;font-weight:800;font-size:20px;padding:10px;border-bottom:1px solid #889}
+.pgrid{display:grid;grid-template-columns:repeat(5,1fr)}
+.pgrid button,.pgrid .empty{height:88px;border:1px solid #222;font-weight:700;font-size:16px}
+.pgrid button{background:var(--lav)}
+.pgrid button.on{background:var(--lav2);border:2px solid #000}
+.pgrid .empty{background:var(--pink);border-color:#caa}
+.prowE{height:88px;border-bottom:1px solid #555;background:var(--pink)}
+.status{position:fixed;bottom:0;width:100%;background:#eef1f8;border-top:1px solid #99a;padding:5px 12px;font-weight:700}
+/* النوافذ */
+.win{position:fixed;background:#f2f3f7;border:1px solid #667;box-shadow:0 10px 34px #0007;display:none;flex-direction:column;z-index:50}
+.win.open{display:flex}
+.win.max{width:96vw!important;height:92vh!important;top:2vh!important;left:2vw!important}
+.win .body{flex:1;overflow:auto;padding:16px}
+.btn{min-width:150px;padding:9px 26px;background:#e8eaf0;border:1px solid #889;font-weight:700}
+.btn:hover{background:#dfe3ee}
+.btn.def{border:2px solid var(--sel);background:#eaf3fc}
+.btn.sm{min-width:90px;padding:5px 14px}
+/* اليومية العامة */
+.jwrap{display:flex;flex:1;overflow:hidden}
+.jside{width:300px;background:#fbfcfd;border:1px solid #99a;padding:12px;display:flex;flex-direction:column;gap:10px;align-items:center}
+.jmain{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.jtop{display:flex;gap:10px;justify-content:center;align-items:center;padding:8px;font-weight:700}
+.jtop input[type=date]{width:340px;height:32px;border:2px solid var(--sel);padding:0 8px}
+.jtop .nb{width:44px;height:40px;background:#e8eaf0;border:1px solid #889;font-size:18px}
+.jform{display:flex;gap:14px;padding:6px 10px}
+.jgrp{border:1px solid #bbc;padding:10px;background:#fbfcfe;flex:1}
+.jgrp .r{display:flex;gap:10px;align-items:center;margin:6px 0}
+.jgrp label{font-weight:700}
+.jgrp input{flex:1;height:30px;border:1px solid #889;padding:0 8px}
+.jgrp input.gray{background:#e4e4e4}
+.jgrid{width:100%;border-collapse:collapse}
+.jgrid th{background:#b9b9f0;border:1px solid #333;padding:8px 6px;font-weight:700}
+.jgrid td{border:1px solid #333;background:#cfdce8;height:52vh}
+.jfoot{display:flex;gap:10px;padding:10px 14px;border-top:1px solid #ccd}
+.jfoot .sp{flex:1}
+/* نماذج الطباعة */
+.grp{border:1px solid #bbc;padding:8px 10px;margin-bottom:10px;background:#fbfcfe}
+.frow{display:flex;align-items:center;gap:8px;margin:7px 0}
+.frow label{font-weight:700}
+.frow input[type=number]{width:80px;height:28px;border:1px solid #889}
+.frow input.txt{flex:1;height:28px;border:1px solid #889;padding:0 6px}
+.frow select{flex:1;height:30px;border:1px solid #889}
+.hl-g{background:#aaff00;padding:2px 8px;font-weight:800}
+.hl-r{background:#f00;color:#000;padding:2px 8px;font-weight:800}
+.ptabs{display:flex;gap:2px;margin:10px 0 6px}
+.ptabs button{padding:6px 14px;background:#e8eaf0;border:1px solid #99a;font-weight:700}
+.ptabs button.on{background:#fff}
+/* عناصر عامة */
+.g2{width:100%;border-collapse:collapse;background:#fff}
+.g2 th,.g2 td{border:1px solid #999;padding:6px 8px;text-align:center}
+.g2 th{background:#f4f6fa}.g2 td{height:32px}
+.g2 td.ed{outline:none;text-align:right;padding:4px 10px}.g2 td.ed:focus{background:#eaf3fc}
+.g2 td.mark{width:28px}.g2 td.narrow,.g2 th.narrow{width:42px;background:#ececec}
+.cap{font-weight:800;margin:4px 2px 8px;text-align:right}
+.hscroll{direction:ltr;display:flex;align-items:center;gap:4px;margin-top:8px}
+.hscroll button{width:20px;height:20px;background:#d4d4d4;border:1px solid #888;font-size:11px;line-height:1}
+.hscroll .track{flex:1;height:16px;background:#d9d9d9;border:1px solid #bbb}
+.footU{display:flex;gap:14px;padding:12px 18px;border-top:1px solid #ccd}
+.grid{width:100%;border-collapse:collapse}
+.grid th,.grid td{border:1px solid #bbb;padding:7px 10px;text-align:center}
+.grid th{background:#fbfcfe;font-weight:700}
+.grid th.narrow,.grid td.narrow{width:44px}
+.grid td{background:#ececec;height:34px}
+.grid tr.sel td{background:var(--sel);color:#fff}
+.pfields{display:flex;gap:70px;border:1px solid #ddd;padding:14px;background:#f7f8fb}
+.pcol{flex:1;display:flex;flex-direction:column;gap:12px}
+.pcol .fld{display:flex;align-items:center;gap:10px}
+.pcol label{width:120px;font-weight:700;text-align:right}
+.pcol input{flex:1;height:32px;border:1px solid #889;background:#fbfcfe;padding:0 8px}
+.plist{height:420px;overflow:auto;background:#fff;border:1px solid #99a;padding:4px}
+.prow{display:flex;gap:10px;align-items:center;padding:3px 8px;cursor:pointer;font-weight:600}
+.prow.sel{background:var(--sel);color:#fff}
+.prow input{width:16px;height:16px;flex:none}
+.pall{display:flex;gap:10px;align-items:center;margin:8px 4px;font-weight:700}
+.footP{display:flex;justify-content:space-between;padding:14px 130px;border-top:1px solid #ccd}
+.opts{display:flex;gap:16px}.opts .col{flex:1}
+.orow{display:flex;align-items:center;gap:8px;margin:7px 0}
+.orow label{flex:1;font-weight:700;text-align:right}
+.orow input{width:150px;height:28px;border:1px solid #889;padding:0 6px}
+.orow input.nm{width:230px;background:#eee}
+.selrow{display:flex;align-items:center;gap:10px;margin:9px 0}
+.selrow label{width:300px;font-weight:700}
+.selrow select{flex:1;height:30px;border:1px solid #889}
+.footO{display:flex;justify-content:center;gap:320px;padding:12px;border-top:1px solid #ccd}
+#shut{position:fixed;inset:0;background:#000c;display:none;flex-direction:column;align-items:center;justify-content:center;gap:24px;color:#fff;font-size:30px;font-weight:800;z-index:999}
+</style>
+</head>
+<body>
+
+<div class="titlebar"><span class="ico"></span><span class="t">النظام</span><button>─</button><button>□</button><button>×</button></div>
+<div class="menubar" id="menu"></div>
+<div class="toolbar" id="tools"></div>
+
+<div class="work">
+  <div class="sideR">
+    <div class="bigT">بديل النظام المحاسبي المتكامل</div><div class="erp">ERP</div>
+    <div class="oval" style="top:230px;right:180px">الصيدليات</div>
+    <div class="oval" style="top:300px;right:340px">السوبرات</div>
+    <div class="oval" style="top:370px;right:200px">الفنادق</div>
+    <div class="oval" style="top:440px;right:340px">نظام إدارة المخازن</div>
+    <div class="oval" style="top:510px;right:150px">نظام إدارة الحسابات</div>
+    <div class="oval" style="top:510px;right:480px">نظام نقاط البيع</div>
+  </div>
+  <div class="cpanel" id="cpanel"></div>
+  <div class="sideL">
+    <div class="logo">Badel</div><div class="logo2">Soft<small>Pro</small></div><div class="logoAr">بديل سوفت</div>
+    <div class="clock"><i class="h"></i><i class="m"></i><i class="s"></i></div>
+    <div class="contact">📞 Yem:771337032<br>📞 ksa: 0562998713<br>✉ info@badelsoft.com<br>🌐 www.badelsoft.com</div>
+  </div>
+</div>
+<div class="status" id="status"></div>
+<div id="shut">تم إغلاق النظام بنجاح<button class="btn def" onclick="location.reload()">إعادة تشغيل النظام</button></div>
+
+<!-- اليومية العامة -->
+<div class="win" id="wJournal" style="top:0;left:0;width:100vw;height:calc(100vh - 30px)">
+  <div class="titlebar"><span class="ico"></span><span class="t">اليومية العامة</span><button onclick="winMin('wJournal')">─</button><button onclick="winMax('wJournal')">□</button><button onclick="journalClose()">×</button></div>
+  <div class="jtop">التاريخ
+    <button class="nb" onclick="jDateMove(1)">⬆</button><button class="nb" onclick="jDateMove(-1)">⬇</button>
+    <input type="date" id="jDate" value="2026-11-24">
+  </div>
+  <div class="jwrap">
+    <div class="jside">
+      <div style="display:flex;gap:8px;align-items:center"><span style="font-size:44px">📅</span><button class="btn sm" style="min-width:26px">⊕</button></div>
+      <b>اليومية العامة</b>
+    </div>
+    <div class="jmain">
+      <div class="jform">
+        <div class="jgrp">
+          <div class="r"><label style="width:90px">مقبوضات</label><input id="jRec"><label style="width:90px">مدفوعات</label><input id="jPay"><label style="width:90px">عمليات ذم</label><input id="jDhm"></div>
+          <div class="r"><label>البيان</label><input id="jStmt"><label>المستند</label><input id="jDoc" style="max-width:160px"></div>
+        </div>
+        <div class="jgrp">
+          <div class="r"><label style="width:110px">من حساب (المدين)</label><label style="width:110px">الى حساب (الدائن)</label><label style="width:70px">العملة</label></div>
+          <div class="r"><input id="jFrom"><input id="jTo"><select id="jCur" style="width:130px"><option>ريال يمني</option><option>دولار أمريكي</option><option>ريال سعودي</option></select></div>
+          <div class="r"><input class="gray" readonly><input class="gray" readonly></div>
+        </div>
+      </div>
+      <table class="jgrid"><thead><tr>
+        <th>مقبوضات</th><th>مدفوعات</th><th>عمليات ذم</th><th>من حساب (مدين)</th><th>إلى حساب (دائن)</th><th>العملة</th><th>البيان</th><th>ادخل من قبل</th><th>تاريخ الادخال</th><th class="narrow"></th>
+      </tr></thead><tbody id="jRows"><tr><td colspan="10"></td></tr></tbody></table>
+      <div class="jfoot">
+        <button class="btn" onclick="openPrint()">اعدادات الطباعة</button>
+        <button class="btn" onclick="toast('تقرير الصندوق')">تقرير الصندوق</button>
+        <button class="btn" onclick="toast('شجرة الحسابات')">شجرة الحسابات</button>
+        <button class="btn" onclick="toast('تصدير الى اكسل')">تصدير الى اكسل</button>
+        <div class="sp"></div>
+        <button class="btn" onclick="toast('خيارات اليومية')">خيارات</button>
+        <button class="btn" onclick="renderJournal()">تحديث</button>
+        <button class="btn" onclick="jClear()">جديد</button>
+        <button class="btn" onclick="jSave()">حفظ</button>
+        <button class="btn" onclick="jDel()">حذف</button>
+        <button class="btn" onclick="journalClose()">خروج</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- إعداد نماذج الطباعة -->
+<div class="win" id="wPrint" style="top:2vh;left:50%;transform:translateX(-50%);width:1160px;height:92vh">
+  <div class="titlebar"><span class="ico"></span><span class="t">إعداد نماذج الطباعة</span><button onclick="winClose('wPrint')">×</button></div>
+  <div class="body">
+    <div class="frow"><label>النموذج</label><select style="max-width:640px"><option>form1</option></select>
+      <button class="btn sm" onclick="toast('نموذج جديد')">جديد</button><button class="btn sm" onclick="toast('تم حفظ النموذج')">حفظ</button><button class="btn sm" onclick="toast('حذف النموذج')">حذف</button></div>
+    <div class="ptabs"><button class="on" onclick="pfTab(0,this)">خصائص عامة</button><button onclick="pfTab(1,this)">خصائص الجدول</button></div>
+    <div id="pfBody" style="display:flex;gap:16px">
+      <div style="flex:1">
+        <div class="frow"><label style="display:flex;gap:8px"><input type="checkbox" checked> النموذج الإفتراضي</label><label>عدد النسخ</label><input type="number" value="1"></div>
+        <div class="grp"><b>هوامش الصفحة</b>
+          <div class="frow"><label>هامش أعلى</label><input type="number" value="5"><label>ملم</label></div>
+          <div class="frow"><label>هامش أيسر</label><input type="number" value="5"><label>ملم</label></div>
+          <div class="frow"><label>هامش أسفل</label><input type="number" value="10"><label>ملم</label></div>
+          <div class="frow"><label>هامش أيمن</label><input type="number" value="5"><label>ملم</label></div>
+        </div>
+        <div class="grp"><b>ترويسة الجدول</b>
+          <label style="display:block;margin:4px"><input type="radio" name="jh"> ألوان الجدول</label>
+          <label style="display:block;margin:4px"><input type="radio" name="jh"> خلفية بيضاء</label>
+          <label style="display:block;margin:4px"><input type="radio" name="jh"> خلفية سوداء</label>
+        </div>
+        <div class="grp"><b>الخطوط</b>
+          <div class="frow"><label>نسبة إرتفاع العنوان</label><input class="txt"><input type="number" value="8"><button class="btn sm">خط العنوان</button></div>
+          <div class="frow"><label>نسبة إرتفاع الجدول</label><input class="txt"><input type="number" value="8"><button class="btn sm">خط الجدول</button></div>
+          <div class="frow"><label>نسبة إرتفاع المجموع</label><input class="txt"><input type="number" value="8"><button class="btn sm">خط المجموع</button></div>
+        </div>
+        <div class="grp"><b>خصائص الخلية</b>
+          <div class="frow"><label>هامش أعلى</label><input type="number" value="2"><label>ملم</label></div>
+          <div class="frow"><label>هامش أيمن</label><input type="number" value="0.5" step="0.1"><label>ملم</label></div>
+        </div>
+      </div>
+      <div style="flex:1">
+        <div class="grp"><b>اتجاه الطباعة</b><select id="pfDir"></select>
+          <label style="display:block;margin:4px"><input type="checkbox"> طباعة الجدول من اليسار إلى اليمين</label>
+          <label style="display:block;margin:4px"><input type="checkbox"> طباعة التذيل نهاية الجدول مباشرة</label>
+          <label style="display:block;margin:4px"><input type="checkbox"> طباعة ألوان الجدول</label>
+          <div class="frow"><label>الطابعة الافتراضية</label><select id="pfPrn"></select></div>
+        </div>
+        <div class="grp"><span class="hl-g">نموذج ترويسة وتذيل خاص</span>
+          <div class="frow"><select><option>نموذج التقرير العام</option></select><button class="btn sm" onclick="openPages()">اضافة</button><button class="btn sm" onclick="openPages()">تعديل</button></div>
+          <label style="display:block;margin:4px"><input type="checkbox"> توسيط الترويسة الخاص</label>
+          <label style="display:block;margin:4px"><input type="checkbox"> توسيط التذيل الخاص</label>
+        </div>
+        <div class="grp"><span class="hl-r">نموذج ترويسة وتذيل عام مشترك</span>
+          <div class="frow"><select><option>نموذج ترويسة وتذيل مشتر</option></select><button class="btn sm" onclick="openPages()">اضافة</button><button class="btn sm" onclick="openPages()">تعديل</button></div>
+          <label style="display:block;margin:4px"><input type="checkbox"> توسيط الترويسة المشتركة</label>
+          <label style="display:block;margin:4px"><input type="checkbox"> توسيط التذيل المشترك</label>
+        </div>
+      </div>
+    </div>
+    <div id="pfTable" class="hidden" style="display:none"><div class="grp"><b>خصائص الجدول</b>
+      <label style="display:block;margin:4px"><input type="checkbox"> طباعة ألوان الجدول</label>
+      <label style="display:block;margin:4px"><input type="checkbox"> طباعة التذيل نهاية الجدول مباشرة</label>
+      <div class="frow"><label>عدد الأعمدة الثابتة</label><input type="number" value="0"></div>
+    </div></div>
+  </div>
+  <div class="footO" style="gap:120px"><button class="btn def" onclick="toast('جارٍ الطباعة...')">طباعة</button><button class="btn" onclick="toast('معاينة الطباعة')">معاينة</button><button class="btn" onclick="winClose('wPrint')">خروج</button></div>
+</div>
+
+<!-- frmSettingPages -->
+<div class="win" id="wPages" style="top:16vh;left:50%;transform:translateX(-50%);width:1160px;height:76vh">
+  <div class="titlebar"><span class="ico"></span><span class="t">frmSettingPages</span><button onclick="winClose('wPages')">×</button></div>
+  <div class="body" style="display:flex;gap:14px">
+    <div style="width:400px">
+      <div class="frow"><label>اسم النموذج</label></div><input class="txt" style="width:100%;height:32px;border:2px solid var(--sel);padding:0 8px">
+      <div class="frow"><label>نوع التقرير</label></div><select disabled style="width:100%;height:32px;background:#e4e4e4"><option>تقرير عام</option></select>
+      <label style="display:flex;gap:8px;margin:8px 0"><input type="checkbox"> النموذج الافتراضي</label>
+      <div class="ptabs"><button class="on" onclick="pgTab(0,this)">الترويسة</button><button onclick="pgTab(1,this)">التذيل</button></div>
+      <div id="pgBody"></div>
+      <div class="frow" style="justify-content:space-between"><button class="btn sm" onclick="winClose('wPages');toast('تم حفظ النموذج')">حفظ</button><button class="btn sm" onclick="winClose('wPages')">خروج</button></div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column">
+      <div class="ptabs"><button class="on">الصفحة الأولى</button><button>بقية الصفحات</button><button>الصفحة الأخيرة</button></div>
+      <div style="flex:1;background:#fff;border:1px solid #99a"></div>
+    </div>
+  </div>
+</div>
+
+<!-- بيانات الشركات والسنوات -->
+<div class="win" id="wComp" style="top:50%;left:50%;transform:translate(-50%,-50%);width:1820px;height:86vh">
+  <div class="titlebar"><span class="ico"></span><span class="t">بيانات الشركات والسنوات</span><button onclick="winMin('wComp')">─</button><button onclick="winMax('wComp')">□</button><button onclick="winClose('wComp')">×</button></div>
+  <div class="body" style="display:flex;gap:16px">
+    <div style="flex:1"><div class="cap">الشركات</div>
+      <table class="g2"><thead><tr><th style="width:90px">الرقم</th><th>الاسم</th><th class="narrow"></th><th class="mark"></th></tr></thead><tbody id="compRows"></tbody></table></div>
+    <div style="flex:1"><div class="cap">السنوات</div>
+      <table class="g2"><thead><tr><th style="width:60px">م</th><th style="width:130px">العام</th><th style="width:170px">رقم العام التالي</th><th>ملاحظات</th><th class="narrow"></th><th class="mark"></th></tr></thead><tbody id="yearRows"></tbody></table>
+      <div class="hscroll"><button>‹</button><div class="track"></div><button>›</button></div></div>
+  </div>
+  <div class="footU" style="justify-content:center"><button class="btn def" onclick="compAdd()">اضافه</button><button class="btn" onclick="compEdit()">تعديل</button><button class="btn" onclick="compDel()">حذف</button><button class="btn" onclick="save();winClose('wComp')">خروج</button></div>
+</div>
+
+<!-- قائمة المستخدمين -->
+<div class="win" id="wUsers" style="top:50%;left:50%;transform:translate(-50%,-50%);width:840px;height:660px">
+  <div class="titlebar"><span class="ico"></span><span class="t">قائمة المستخدمين</span><button onclick="winMin('wUsers')">─</button><button onclick="winMax('wUsers')">□</button><button onclick="winClose('wUsers')">×</button></div>
+  <div class="body"><table class="grid"><thead><tr><th class="narrow"></th><th>الاسم</th></tr></thead><tbody id="userRows"></tbody></table>
+    <div class="hscroll"><button>‹</button><div class="track"></div><button>›</button></div></div>
+  <div class="footU"><button class="btn def" onclick="openPerm(-1)">اضافه</button><button class="btn" onclick="userEdit()">تعديل</button><button class="btn" onclick="userDel()">حذف</button><button class="btn" onclick="winClose('wUsers')">خروج</button></div>
+</div>
+
+<!-- صلاحيات المستخدمين -->
+<div class="win" id="wPerm" style="top:50%;left:50%;transform:translate(-50%,-50%);width:1180px;height:96vh">
+  <div class="titlebar"><span class="ico"></span><span class="t">صلاحيات المستخدمين</span><button onclick="winMin('wPerm')">─</button><button onclick="winMax('wPerm')">□</button><button onclick="winClose('wPerm')">×</button></div>
+  <div class="body">
+    <div class="pfields">
+      <div class="pcol"><div class="fld"><label>اسم المستخدم</label><input id="pName"></div><div class="fld"><label>كلمة السر</label><input id="pPass" type="password"></div><div class="fld"><label>تأكيد كلمة السر</label><input id="pPass2" type="password"></div></div>
+      <div class="pcol"><div class="fld"><label>الحساب</label><input id="pAcct"></div><div class="fld"><label>صندوق محدد</label><input id="pBox"></div></div>
+    </div>
+    <div class="ptabs" id="pTabs"></div>
+    <div class="plist" id="pList"></div>
+    <label class="pall"><input type="checkbox" id="pAll" onchange="permAll(this.checked)"> تحديد الكل</label>
+  </div>
+  <div class="footP"><button class="btn def" onclick="permSave()">موافق</button><button class="btn" onclick="winClose('wPerm')">خروج</button></div>
+</div>
+
+<!-- خيارات الحسابات العامة -->
+<div class="win" id="wOpts" style="top:50%;left:50%;transform:translate(-50%,-50%);width:1680px;height:90vh">
+  <div class="titlebar"><span class="ico"></span><span class="t">خيارات الحسابات العامة</span><button onclick="winMin('wOpts')">─</button><button onclick="winMax('wOpts')">□</button><button onclick="winClose('wOpts')">×</button></div>
+  <div class="body"><div class="opts"><div class="col" id="optR"></div><div class="col" id="optL"></div></div></div>
+  <div class="footO"><button class="btn def" onclick="optsSave()">موافق</button><button class="btn" onclick="winClose('wOpts')">خروج</button></div>
+</div>
+
+<!-- الاعدادات العامة -->
+<div class="win" id="wGen" style="top:50%;left:50%;transform:translate(-50%,-50%);width:1100px;height:86vh">
+  <div class="titlebar"><span class="ico"></span><span class="t">الاعدادات العامة</span><button onclick="winMax('wGen')">□</button><button onclick="winClose('wGen')">×</button></div>
+  <div class="body"><div class="ptabs" id="gTabs"></div><div id="gBody"></div></div>
+  <div class="footO" style="gap:200px"><button class="btn def" onclick="genSave()">موافق</button><button class="btn" onclick="winClose('wGen')">الغاء</button></div>
+</div>
+
+<!-- تنبيهات النظام -->
+<div class="win" id="wAlr" style="top:50%;left:50%;transform:translate(-50%,-50%);width:700px;height:520px">
+  <div class="titlebar"><span class="ico"></span><span class="t">تنبيهات النظام</span><button onclick="winMax('wAlr')">□</button><button onclick="winClose('wAlr')">×</button></div>
+  <div class="body" id="alrBody"></div>
+  <div class="footO" style="gap:200px"><button class="btn def" onclick="alrSave()">موافق</button><button class="btn" onclick="winClose('wAlr')">خروج</button></div>
+</div>
+
+<script>
+const AR='٠١٢٣٤٥٦٧٨٩', ar=n=>String(n).replace(/\d/g,d=>AR[d]);
+const $=id=>document.getElementById(id);
+const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},set(k,v){localStorage.setItem(k,JSON.stringify(v))}};
+let state=store.get('badel_state',{users:[{name:'admin',pass:'1234',acct:'الحسابات',box:'',perms:{}}],options:null,gen:{},alr:{},
+ companies:[{num:1,name:'النظام'}],years:[{m:1,year:'2026',next:'0',notes:''}],journal:[]});
+state.companies=state.companies||[{num:1,name:'النظام'}];state.years=state.years||[{m:1,year:'2026',next:'0',notes:''}];state.journal=state.journal||[];
+const save=()=>store.set('badel_state',state);
+let tt;function toast(s){$('status').textContent=s;clearTimeout(tt);tt=setTimeout(statusBar,2500);}
+
+/* القوائم */
+const MENU_DEF=[{t:'الملف',panel:'file'},{t:'الفواتير'},{t:'الحسابات'},{t:'القيود'},{t:'المواد'},{t:'شؤون الموظفين'},{t:'تقارير الحسابات'},{t:'تقارير المواد'},{t:'تقارير ختامية'},
+ {t:'الاعدادات',items:['الاعدادات العامة','صلاحيات المستخدمين','خيارات الحسابات العامة','تنبيهات النظام','بيانات الشركات والسنوات'],panel:'set'},
+ {t:'ادوات',items:['التقرير العام','مراجعة الحركات','ترحيل الحركة اليومية','قائمة العملات','تسجيل النظام','فحص النظام','مستعرض مواعيد اليوم']}];
+$('menu').innerHTML=MENU_DEF.map((m,i)=>`<span onclick="menuOpen(${i},event)">${m.t}</span>`).join('');
+$('tools').innerHTML=MENU_DEF.map(m=>`<button onclick="toolClick('${m.t}')">${m.t}</button>`).join('')+'<div class="spacer"></div><div class="vscroll"><b>▲</b><b>▼</b></div>';
+function toolClick(t){const m=MENU_DEF.find(x=>x.t===t);if(m&&m.panel)showPanel(m.panel);else toast('قائمة "'+t+'": غير مفعّلة في النموذج');}
+function menuOpen(i,ev){ev.stopPropagation();closeDD();document.querySelectorAll('.menubar span').forEach(s=>s.classList.remove('open'));
+ const m=MENU_DEF[i];
+ if(m.items){ev.target.classList.add('open');const r=ev.target.getBoundingClientRect();const dd=document.createElement('div');dd.className='dd';dd.id='dd';
+  dd.innerHTML=m.items.map(it=>`<div onclick="ddClick('${m.t}','${it}',event)">${it}</div>`).join('');document.body.appendChild(dd);
+  dd.style.top=(r.bottom+2)+'px';dd.style.right=(innerWidth-r.right)+'px';}
+ else if(m.panel)showPanel(m.panel);
+ else toast('قائمة "'+m.t+'": غير مفعّلة في النموذج');}
+function closeDD(){const d=$('dd');if(d)d.remove();document.querySelectorAll('.menubar span.open').forEach(s=>s.classList.remove('open'));}
+document.addEventListener('click',e=>{if(!e.target.closest('.dd'))closeDD();});
+function ddClick(t,it,ev){ev.stopPropagation();closeDD();
+ if(t==='الاعدادات')({ 'الاعدادات العامة':()=>{setOn=0;showPanel('set');open('wGen');},
+  'صلاحيات المستخدمين':()=>{setOn=1;showPanel('set');renderUsers();open('wUsers');},
+  'خيارات الحسابات العامة':()=>{setOn=2;showPanel('set');open('wOpts');},
+  'تنبيهات النظام':()=>{setOn=3;showPanel('set');open('wAlr');},
+  'بيانات الشركات والسنوات':()=>{setOn=-1;showPanel('set');compOpen();}})[it]();
+ else toast('ادوات: أمر "'+it+'" — غير مفعّل في النموذج');}
+
+/* اللوحة الوسطى */
+let panelKind='set',setOn=-1,journalOpen=false;
+const FILE_ROWS=[['اليومية العامة','إضافة شركة جديدة','تغير المستخدم','عمل نسخة احتياطية','استرجاع نسخة احتياطية'],
+ ['تعريف ترويسة / تذيل','اتصال','قائمة الشركات','استيراد من اكسل',null],
+ ['انهاء البرنامج',null,null,null,null],[null,null,null,null,null],[null,null,null,null,null],[null,null,null,null,null]];
+function showPanel(k){panelKind=k;drawPanel();}
+function drawPanel(){ if(panelKind==='file'){
+  $('cpanel').innerHTML='<div class="head">الملف</div><div class="pgrid">'+FILE_ROWS.map(r=>r.map(c=>c?`<button class="${c==='اليومية العامة'&&journalOpen?'on':''}" onclick="fileAct('${c}')">${c}</button>`:'<div class="empty"></div>').join('')).join('')+'</div>';
+ } else {
+  $('cpanel').innerHTML='<div class="head">الاعدادات</div><div class="pgrid" style="grid-template-columns:repeat(5,1fr)">'+
+   SETS.map((s,i)=>`<button class="${i===setOn?'on':''}" onclick="setClick(${i})">${s[0]}</button>`).join('')+'<div class="empty"></div></div>'+
+   '<div class="prowE"></div><div class="prowE"></div><div class="prowE"></div><div class="prowE"></div><div class="prowE"></div>';}}
+const SETS=[['الاعدادات العامة','wGen'],['صلاحيات المستخدمين',null],['خيارات الحسابات العامة','wOpts'],['تنبيهات النظام','wAlr']];
+function setClick(i){setOn=i;drawPanel();if(i===1){renderUsers();open('wUsers');}else open(SETS[i][1]);}
+function fileAct(a){ ({'اليومية العامة':()=>{journalOpen=true;drawPanel();open('wJournal');},
+ 'إضافة شركة جديدة':()=>{activeGrid='comp';compOpen();},
+ 'تغير المستخدم':()=>toast('تغير المستخدم'),
+ 'عمل نسخة احتياطية':()=>toast('تم عمل نسخة احتياطية'),
+ 'استرجاع نسخة احتياطية':()=>toast('تم استرجاع نسخة احتياطية'),
+ 'تعريف ترويسة / تذيل':()=>openPages(),
+ 'اتصال':()=>toast('اتصال: Yem:771337032 / ksa:0562998713'),
+ 'قائمة الشركات':()=>compOpen(),
+ 'استيراد من اكسل':()=>toast('استيراد من اكسل'),
+ 'انهاء البرنامج':()=>{if(confirm('إنهاء البرنامج؟'))$('shut').style.display='flex';}})[a]();}
+function journalClose(){journalOpen=false;if(panelKind==='file')drawPanel();winClose('wJournal');}
+drawPanel();
+
+/* اليومية العامة */
+function jDateMove(d){const i=$('jDate');const dt=new Date(i.value);dt.setDate(dt.getDate()+d);i.value=dt.toISOString().slice(0,10);}
+function jClear(){['jRec','jPay','jDhm','jStmt','jDoc','jFrom','jTo'].forEach(id=>$(id).value='');}
+function jSave(){const e={rec:$('jRec').value,pay:$('jPay').value,dhm:$('jDhm').value,from:$('jFrom').value,to:$('jTo').value,cur:$('jCur').value,stmt:$('jStmt').value,doc:$('jDoc').value,by:'admin',at:$('jDate').value};
+ if(!e.stmt&&!e.rec&&!e.pay&&!e.dhm)return toast('لا يوجد بيانات للحفظ');
+ state.journal.push(e);save();renderJournal();jClear();toast('تم حفظ القيد');}
+let jSel=-1;
+function renderJournal(){ $('jRows').innerHTML=state.journal.length?state.journal.map((e,i)=>`<tr style="height:34px;${i===jSel?'background:var(--sel);color:#fff':''}" onclick="jSel=${i};renderJournal()">
+  <td style="height:34px;background:${i===jSel?'var(--sel)':'#fff'}">${e.rec}</td><td style="background:${i===jSel?'var(--sel)':'#fff'}">${e.pay}</td><td style="background:${i===jSel?'var(--sel)':'#fff'}">${e.dhm}</td><td style="background:${i===jSel?'var(--sel)':'#fff'}">${e.from}</td><td style="background:${i===jSel?'var(--sel)':'#fff'}">${e.to}</td><td style="background:${i===jSel?'var(--sel)':'#fff'}">${e.cur}</td><td style="background:${i===jSel?'var(--sel)':'#fff'}">${e.stmt}</td><td style="background:${i===jSel?'var(--sel)':'#fff'}">${e.by}</td><td style="background:${i===jSel?'var(--sel)':'#fff'}">${e.at}</td><td class="narrow"></td></tr>`).join('')
+  :'<tr><td colspan="10"></td></tr>';}
+function jDel(){if(jSel<0)return toast('اختر قيداً');state.journal.splice(jSel,1);jSel=-1;save();renderJournal();}
+
+/* نماذج الطباعة */
+const PRINTERS=['بلا','OneNote for Windows 10','OneNote (Desktop)','Microsoft XPS Document Writer','Microsoft Print to PDF','L3160 Series(Network)','Foxit Reader PDF Printer','Fax','EPSON L3160 Series'];
+function openPrint(){$('pfPrn').innerHTML=PRINTERS.map(p=>`<option>${p}</option>`).join('');$('pfDir').innerHTML='<option>طولي</option><option>عرضي</option>';open('wPrint');}
+function pfTab(i,b){[...b.parentNode.children].forEach(x=>x.className='');b.className='on';$('pfBody').style.display=i?'none':'flex';$('pfTable').style.display=i?'block':'none';}
+function openPages(){pgTab(0);open('wPages');}
+function pgTab(i,b){ if(b)[...b.parentNode.children].forEach(x=>x.className='');else document.querySelectorAll('#wPages .ptabs')[0].children[0].className='on';
+ const t=i?'التذيل':'الترويسة';
+ $('pgBody').innerHTML=`<div class="grp"><label style="display:flex;gap:8px"><input type="checkbox"> ${t} مكررة</label><button class="btn sm" style="margin:6px 0">جلب</button>
+  <label style="display:flex;gap:8px;margin:6px 0"><input type="checkbox"> استخدام ${t} المشتركة</label>
+  <button class="btn sm" style="width:100%">تصميم ${t} الصفحة الاولى</button>
+  <div class="grp"><b>إطار ${t}</b><label style="display:inline-block;margin:4px 12px"><input type="radio" name="pf${i}"> بدون اطار</label><label style="display:inline-block;margin:4px"><input type="radio" name="pf${i}"> اطار مفرد</label><label style="display:block;margin:4px 12px"><input type="radio" name="pf${i}"> اطار مزدوج</label></div>
+  <button class="btn sm" style="width:100%">تصميم ${t} بقية الصفحات</button></div>`;}
+
+/* الشركات والسنوات */
+let activeGrid='comp',compSel=0,yearSel=0;
+function renderComp(){$('compRows').innerHTML=state.companies.map((c,i)=>`<tr onclick="activeGrid='comp';compSel=${i};renderComp()"><td>${c.num}</td><td class="ed" contenteditable oninput="state.companies[${i}].name=this.textContent;save()">${c.name}</td><td class="narrow"></td><td class="mark">${i===compSel?'▶':''}</td></tr>`).join('');}
+function renderYears(){$('yearRows').innerHTML=state.years.map((y,i)=>`<tr onclick="activeGrid='year';yearSel=${i};renderYears()"><td>${y.m}</td><td class="ed" contenteditable oninput="state.years[${i}].year=this.textContent;save()">${y.year}</td><td class="ed" contenteditable oninput="state.years[${i}].next=this.textContent;save()">${y.next}</td><td class="ed" contenteditable oninput="state.years[${i}].notes=this.textContent;save()">${y.notes}</td><td class="narrow"></td><td class="mark">${i===yearSel?'▶':''}</td></tr>`).join('');}
+function compOpen(){compSel=0;yearSel=0;renderComp();renderYears();open('wComp');}
+function focusCell(g){const tr=$(g==='comp'?'compRows':'yearRows').querySelectorAll('tr')[g==='comp'?compSel:yearSel];const ed=tr&&tr.querySelector('.ed');if(ed)ed.focus();}
+function compAdd(){if(activeGrid==='comp'){const n=state.companies.length?Math.max(...state.companies.map(c=>+c.num||0))+1:1;state.companies.push({num:n,name:''});compSel=state.companies.length-1;renderComp();focusCell('comp');}
+ else{const n=state.years.length?Math.max(...state.years.map(y=>+y.m||0))+1:1;state.years.push({m:n,year:'2026',next:'0',notes:''});yearSel=state.years.length-1;renderYears();focusCell('year');}save();}
+function compEdit(){focusCell(activeGrid);}
+function compDel(){if(activeGrid==='comp'){if(compSel<0)return;state.companies.splice(compSel,1);compSel=-1;renderComp();}else{if(yearSel<0)return;state.years.splice(yearSel,1);yearSel=-1;renderYears();}save();}
+
+/* المستخدمون والصلاحيات */
+let selUser=-1;
+function renderUsers(){$('userRows').innerHTML=state.users.map((u,i)=>`<tr class="${i===selUser?'sel':''}" onclick="selUser=${i};renderUsers()"><td class="narrow"></td><td>${u.name}</td></tr>`).join('');}
+function userEdit(){selUser<0?toast('اختر مستخدماً أولاً'):openPerm(selUser);}
+function userDel(){if(selUser<0)return toast('اختر مستخدماً أولاً');if(confirm('حذف المستخدم '+state.users[selUser].name+' ؟')){state.users.splice(selUser,1);selUser=-1;save();renderUsers();}}
+const PTABS={emp:'شؤون الموظفين',acc:'المحاسبه',mat:'المواد',gen:'صلاحيات عامة',oth:'صلاحيات اخرى',guide:'صلاحيات الدليل'};
+const PERMS={emp:[[15,'اضافة جهاز جديد'],[16,'تعديل جهاز'],[17,'حذف جهاز البصمة'],[18,'جدول اجور جديد'],[19,'استعراض جدول الأجور'],[20,'تعديل جدول الأجور'],[21,'حذف جدول الأجور'],[22,'اضافة سلفة نقدية'],[23,'استعراض السلف النقدية'],[24,'تعديل سلفة نقدية'],[25,'حذف سلفة نقدية'],[26,'اضافة عقوبة جديدة'],[27,'استعراض العقوبات'],[28,'تعديل عقوبة'],[29,'حذف عقوبة'],[30,'تقرير تفصيلي للدوام'],[31,'اضافة إجازة جديدة'],[32,'استعراض الإجازات'],[33,'تعديل إجازة'],[34,'حذف إجازة']],
+acc:[[1,'فتح فترة مالية'],[2,'إغلاق فترة مالية'],[3,'ادخال قيد يومي'],[4,'تعديل قيد يومي'],[5,'حذف قيد يومي'],[6,'استعراض القيود'],[7,'ترحيل القيود'],[8,'ميزان المراجعة'],[9,'تقرير الحسابات العامة'],[10,'سند قبض'],[11,'سند صرف'],[12,'قيد افتتاحي'],[13,'تسوية بنكية'],[14,'اقفال سنوي']],
+mat:[[35,'تعريف مادة جديدة'],[36,'تعديل مادة'],[37,'حذف مادة'],[38,'استعراض المواد'],[39,'فاتورة شراء'],[40,'تعديل فاتورة شراء'],[41,'حذف فاتورة شراء'],[42,'فاتورة مبيع'],[43,'تعديل فاتورة مبيع'],[44,'حذف فاتورة مبيع'],[45,'جرد المخازن'],[46,'تحويل بين المخازن'],[47,'تقرير حركة مادة'],[48,'تقرير أرصدة المواد'],[49,'تعريف مخزن جديد'],[50,'حذف مخزن']],
+gen:[[51,'الدخول الى الاعدادات'],[52,'تعديل الصلاحيات'],[53,'اضافة مستخدم'],[54,'حذف مستخدم'],[55,'خيارات الحسابات'],[56,'نسخة احتياطية'],[57,'استعادة نسخة'],[58,'تغيير الفترة المالية'],[59,'الترويسة والشعار'],[60,'اغلاق النظام']],
+oth:[[61,'تقارير ختامية'],[62,'طباعة تقارير ختامية'],[63,'تقارير المواد'],[64,'طباعة تقارير المواد'],[65,'تقارير الحسابات'],[66,'طباعة تقارير الحسابات'],[67,'تقارير الموظفين'],[68,'طباعة تقارير الموظفين'],[69,'تصدير Excel'],[70,'تصدير PDF']],
+guide:[[71,'استعراض الدليل'],[72,'اضافة موضوع'],[73,'تعديل موضوع'],[74,'حذف موضوع'],[75,'طباعة الدليل']]};
+let pTab='emp',pEdit=-1,pCur={},pSel=-1;
+$('pTabs').innerHTML=Object.entries(PTABS).map(([k,v])=>`<button onclick="pTab='${k}';pSel=-1;drawPList()">${v}</button>`).join('');
+function openPerm(i){pEdit=i;pTab='emp';pSel=-1;const u=i>=0?state.users[i]:{name:'',pass:'',acct:'',box:'',perms:{}};
+ $('pName').value=u.name||'';$('pPass').value=u.pass||'';$('pPass2').value=u.pass||'';$('pAcct').value=u.acct||'';$('pBox').value=u.box||'';
+ pCur=JSON.parse(JSON.stringify(u.perms||{}));drawPList();open('wPerm');}
+function drawPList(){[...$('pTabs').children].forEach((b,i)=>b.className=Object.keys(PTABS)[i]===pTab?'on':'');
+ const set=new Set(pCur[pTab]||[]);
+ $('pList').innerHTML=PERMS[pTab].map(([n,t],i)=>`<div class="prow ${i===pSel?'sel':''}" onclick="pSel=${i};drawPList()"><input type="checkbox" ${set.has(n)?'checked':''} onclick="event.stopPropagation();pSel=${i};permToggle(${n},this.checked)"><span>${t}${ar(n)}</span></div>`).join('');
+ $('pAll').checked=set.size===PERMS[pTab].length;}
+function permToggle(n,on){const s=new Set(pCur[pTab]||[]);on?s.add(n):s.delete(n);pCur[pTab]=[...s];drawPList();}
+function permAll(on){pCur[pTab]=on?PERMS[pTab].map(p=>p[0]):[];drawPList();}
+function permSave(){const name=$('pName').value.trim();if(!name)return alert('ادخل اسم المستخدم');
+ if($('pPass').value!==$('pPass2').value)return alert('كلمة السر وتأكيدها غير متطابقتين');
+ const u={name,pass:$('pPass').value,acct:$('pAcct').value,box:$('pBox').value,perms:pCur};
+ pEdit>=0?state.users[pEdit]=u:state.users.push(u);save();renderUsers();winClose('wPerm');toast('تم حفظ المستخدم '+name);}
+
+/* خيارات الحسابات */
+const OR=[['sales','المبيعات الافتراضي','411','المبيعات'],['sret','مردود المبيعات','312','مردودات المبيعات'],['cust','حساب الزبائن','122','الزبائن'],['sup','حساب الموردين','221','الموردون']],
+OR2=[['cash','حساب النقدية الافتراضي','12301','الصندوق'],['chkO','حساب شيكات الصادرة','',''],['chkI','حساب الشيكات الواردة','','']],
+OR3=[['dscA','الخصم الممنوح','313','الخصم الممنوح به'],['dscE','الخصم المكتسب','412','الخصم المكتسب']],
+OR4=[['prof','حساب الأرباح','211021','ارباح'],['cur','حساب فروق عملة','','']],
+OL=[['ins','tabعية حساب شركات التأمين','',''],['pat','tabعية حساب المرضى','',''],['mem','tabعية حساب الذاكرة','',''],['emp2','tabعية حساب الموظفين','',''],['sal','tabعية رواتب الموظفين','',''],['adv','حساب سلف الموظفين','',''],['add','حساب الاضافات','',''],['pen','حساب العقوبات','32201','عقوبات مالية'],['abs','حساب الغياب والتأخير','32202','غياب وتأخير'],['net','حساب دفع صافي رواتب الموظفين','',''],['exp','حساب مقابل المصاريف','1210301','مستودع1']];
+const orow=(k,l,c,n)=>`<div class="orow"><label>${l}</label><input id="oc_${k}" value="${c}"><button class="btn sm" onclick="toast('بحث عن حساب...')">بحث</button><input class="nm" id="on_${k}" value="${n}"></div>`;
+const ogrp=a=>`<div class="grp">${a.map(r=>orow(...r)).join('')}</div>`;
+function optsOpen(){const o=state.options||{};
+ $('optR').innerHTML=ogrp(OR)+ogrp(OR2)+ogrp(OR3)+ogrp(OR4)+`<label class="pall"><input type="checkbox" id="oCur" ${o.cur?'checked':''}> عمل قيد فروق العملة تلقائيا</label>`;
+ $('optL').innerHTML=ogrp(OL)+`<div class="selrow"><label>الطابعة الافتراضية</label><select id="oPrn"><option>بلا</option><option>HP</option><option>Epson</option></select></div>
+  <div class="selrow"><label>طريقة تسعير الجرد</label><select id="oPrice"><option>السعر الوسطي (الكلفة)</option><option>وارد أولاً صادر أولاً</option><option>آخر سعر شراء</option></select></div>
+  <div class="selrow"><label>سعر الكلفة لحساب أرباح الفواتير</label><select id="oCost"><option>السعر الوسطي (الكلفة)</option><option>وارد أولاً صادر أولاً</option><option>آخر سعر شراء</option></select></div>`;
+ [...OR,...OR2,...OR3,...OR4,...OL].forEach(([k,,c,n])=>{if(o[k]){$('oc_'+k).value=o[k].code;$('on_'+k).value=o[k].name;}});
+ $('oPrn').value=o.prn||'بلا';$('oPrice').value=o.price||'السعر الوسطي (الكلفة)';$('oCost').value=o.cost||'السعر الوسطي (الكلفة)';open('wOpts');}
+function optsSave(){const o={};[...OR,...OR2,...OR3,...OR4,...OL].forEach(([k])=>o[k]={code:$('oc_'+k).value,name:$('on_'+k).value});
+ o.prn=$('oPrn').value;o.price=$('oPrice').value;o.cost=$('oCost').value;o.cur=$('oCur').checked;state.options=o;save();winClose('wOpts');toast('تم حفظ خيارات الحسابات العامة');}
+
+/* الاعدادات العامة */
+const GTABS=['خصائص عامة','النسخ الاحتياطية','الفترة المالية','بيانات الترويسة والشعار','خصائص اخرى'];let gTab=0;
+function genOpen(){gTab=0;$('gTabs').innerHTML=GTABS.map((t,i)=>`<button onclick="gTab=${i};genOpen()">${t}</button>`).join('');genBody();open('wGen');}
+function genBody(){[...$('gTabs').children].forEach((b,i)=>b.className=i===gTab?'on':'');
+ const g=state.gen||{};
+ const inp=(k,l,v='')=>`<div style="display:flex;gap:10px;align-items:center;margin:8px 0"><label style="width:190px;font-weight:700">${l}</label><input id="g_${k}" value="${v||''}" style="flex:1;height:30px;border:1px solid #889;padding:0 8px"></div>`;
+ const chk=(k,l)=>`<label style="display:flex;gap:8px;margin:5px 0"><input type="checkbox" id="g_${k}" ${g[k]?'checked':''}> ${l}</label>`;let h='';
+ if(gTab===0)h=inp('dbtype','نوع قاعدة البيانات',g.dbtype||'SQL Server')+inp('server','اسم السيرفر',g.server)+inp('pc','اسم الكمبيوتر الحالي',g.pc||'PC-01')+inp('db','قاعدة البيانات',g.db||'badel')+inp('company','اسم الشركة',g.company)+inp('mgr','مدير النظام',g.mgr)+inp('mp','كلمة المرور',g.mp)+inp('mp2','تأكيد كلمة المرور',g.mp)+['الحسابات','ادارة فندق','تصنيع','المطاعم','المخازن','شؤون الموظفين','فواتير المياه والكهرباء','العيادات والمراكز الطبية'].map(m=>chk('mod_'+m,m)).join('');
+ if(gTab===1)h=inp('bpath','موقع النسخة الاحتياطية',g.bpath||'C:\\Backup')+chk('bforce','الحفظ إجباري في موقع النسخة الاحتياطية المحدد')+chk('bnoal','عدم التنبيه عند عمل نسخة احتياطية')+chk('bstart','اليه عمل نسخة احتياطية عند تشغيل النظام')+chk('bend','عمل نسخة احتياطية عند غلق النظام');
+ if(gTab===2)h=inp('year','العام الافتراضي',g.year||'2026')+inp('from','من تاريخ',g.from||'2026-01-01')+inp('to','الى تاريخ',g.to||'2026-12-31')+['تجاهل الفترة المحددة والسماح بإدخال تاريخ من خارجها','التنبيه عند كتابة تاريخ خارج الفترة المحددة','عدم السماح بكتابة تاريخ خارج الفترة المحددة'].map((t,i)=>`<label style="display:flex;gap:8px;margin:5px 0"><input type="radio" name="pr" ${(g.pr??1)==i?'checked':''}> ${t}</label>`).join('');
+ if(gTab===3)h=chk('hshare','استخدام نموذج الترويسة المشتركة بدلا من بيانات الترويسة أدناه')+chk('hcenter','توسيط الترويسة لكافة التقارير')+`<div class="grp"><b>ترويسة يمنى عربي</b>${inp('h1','الأسم',g.h1)}${inp('h2','العنوان',g.h2)}${inp('h3','التلفون',g.h3)}</div><div class="grp"><b>ترويسة يسرى أجنبي</b>${inp('h4','Name',g.h4)}${inp('h5','Address',g.h5)}${inp('h6','Tel',g.h6)}</div>`;
+ if(gTab===4)h=inp('tax','الرقم الضريبي',g.tax)+inp('deb','مصطلح المدين',g.deb||'مدين')+inp('cred','مصطلح الدائن',g.cred||'دائن')+inp('withd','نسبة المسحوبات المسموح بها من الراتب',g.withd||'50')+chk('wd1','ربط مسحوبات الموظفين بالدوام')+chk('einv','استخدام الفاتورة الإلكترونية')+chk('neg','السماح بإخراج المواد ذات الرصيد السالب')+chk('nofrac','عدم التعامل بالكميات الكسرية')+chk('sysdate','ضبط تاريخ النظام')+chk('intsec','تأمين Integrated Security');
+ $('gBody').innerHTML=h;}
+function genSave(){const g=state.gen||{};$('gBody').querySelectorAll('input[id^=g_]').forEach(i=>g[i.id.slice(2)]=i.type==='checkbox'?i.checked:i.value);state.gen=g;save();winClose('wGen');toast('تم حفظ الاعدادات العامة');}
+
+/* تنبيهات النظام */
+const ALRS=['التنبيه عند انخفاض رصيد مادة عن الحد الأدنى','التنبيه عند انتهاء صلاحية المواد','التنبيه عند وجود شيكات مستحقة','التنبيه عند عمل نسخة احتياطية','التنبيه عند دخول مستخدم جديد','تنبيه إغلاق الفترة المالية'];
+function alrOpen(){$('alrBody').innerHTML=ALRS.map((t,i)=>`<label style="display:flex;gap:10px;margin:12px 0;font-weight:600"><input type="checkbox" id="al_${i}" ${state.alr[i]?'checked':''}> ${t}</label>`).join('');open('wAlr');}
+function alrSave(){ALRS.forEach((_,i)=>state.alr[i]=$('al_'+i).checked);save();winClose('wAlr');toast('تم حفظ تنبيهات النظام');}
+
+function open(id){$(id).classList.add('open')}
+function winClose(id){$(id).classList.remove('open','max')}
+function winMax(id){$(id).classList.toggle('max')}
+function winMin(id){$(id).classList.remove('open')}
+const ORIG={wOpts:optsOpen,wGen:genOpen,wAlr:alrOpen};const _open=open;open=id=>ORIG[id]?ORIG[id]():_open(id);
+
+function statusBar(){const d=new Date();let h=d.getHours();const ap=h>=12?'PM':'AM';h=h%12||12;
+ $('status').textContent=`اسم المستخدم:  admin  |  العام:  ${ar(2026)}  |  وقت الدخول:  ${ar(h+':'+String(d.getMinutes()).padStart(2,'0'))+' '+ap}  |`;}
+statusBar();setInterval(statusBar,30000);renderUsers();renderJournal();
+</script>
+</body>
+</html>

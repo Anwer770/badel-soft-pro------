@@ -1,0 +1,6 @@
+{
+  "name": "Badel Soft Pro - بديل سوفت",
+  "description": "النظام المحاسبي المتكامل بديل سوفت برو مع أدوات الذكاء الاصطناعي لإنشاء وتعديل الصور وتحليل المستندات والفواتير.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
