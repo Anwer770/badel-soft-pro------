@@ -377,6 +377,7 @@ export const ExcelImportDialog: React.FC<ExcelImportDialogProps> = ({
     unit1: '10',
     unit2: '11',
     expiryDate: '12',
+    groupCode: '',
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);

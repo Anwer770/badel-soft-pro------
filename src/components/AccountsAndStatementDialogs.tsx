@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toAr } from '../data/erpDefaults';
-import type { JournalEntry, MsgConfig } from '../types/erp';
+import type { CustomAccountRecord, JournalEntry, MsgConfig } from '../types/erp';
 import { DraggableWindow } from './DraggableWindow';
 
 export interface AccTreeNode {
@@ -229,7 +229,98 @@ export const ACCOUNT_TREE_DATA: AccTreeNode[] = [
   },
 ];
 
-export function findAccountCodeInTree(nameOrCode: string): string {
+export function buildAccountTree(customAccounts: CustomAccountRecord[] = []): AccTreeNode[] {
+  const cloneNode = (n: AccTreeNode): AccTreeNode => ({
+    ...n,
+    children: n.children ? n.children.map(cloneNode) : undefined,
+  });
+  const roots = ACCOUNT_TREE_DATA.map(cloneNode);
+
+  const customMap = new Map<string, CustomAccountRecord>();
+  for (const c of customAccounts) {
+    customMap.set(c.code, c);
+  }
+
+  // Remove or update existing nodes if overridden/moved in customAccounts
+  const detachMovedAndOverride = (nodes: AccTreeNode[], parentCode: string): AccTreeNode[] => {
+    const out: AccTreeNode[] = [];
+    for (const node of nodes) {
+      const ov = customMap.get(node.code);
+      if (ov && ov.parentCode !== parentCode) {
+        // Moved elsewhere -> skip here, will re-attach below
+        continue;
+      }
+      const updated: AccTreeNode = ov
+        ? { ...node, name: ov.name, kind: ov.kind }
+        : { ...node };
+      if (updated.children) {
+        updated.children = detachMovedAndOverride(updated.children, updated.code);
+      }
+      out.push(updated);
+    }
+    return out;
+  };
+
+  const tree = detachMovedAndOverride(roots, '');
+
+  const findByCode = (nodes: AccTreeNode[], code: string): AccTreeNode | null => {
+    for (const n of nodes) {
+      if (n.code === code) return n;
+      if (n.children) {
+        const hit = findByCode(n.children, code);
+        if (hit) return hit;
+      }
+    }
+    return null;
+  };
+
+  for (const c of customAccounts) {
+    if (findByCode(tree, c.code)) continue;
+    const newNode: AccTreeNode = {
+      code: c.code,
+      name: c.name,
+      kind: c.kind,
+      children: c.kind === 'folder' ? [] : undefined,
+    };
+    const parent = c.parentCode ? findByCode(tree, c.parentCode) : null;
+    if (parent) {
+      if (!parent.children) parent.children = [];
+      parent.children.push(newNode);
+    } else {
+      tree.push(newNode);
+    }
+  }
+
+  return tree;
+}
+
+export interface FlatAccountItem {
+  code: string;
+  name: string;
+  parentCode: string;
+  kind: 'folder' | 'leaf';
+  level: number;
+}
+
+export function flattenAccountTree(
+  nodes: AccTreeNode[],
+  parentCode = '',
+  level = 0
+): FlatAccountItem[] {
+  const list: FlatAccountItem[] = [];
+  for (const n of nodes) {
+    list.push({ code: n.code, name: n.name, parentCode, kind: n.kind, level });
+    if (n.children?.length) {
+      list.push(...flattenAccountTree(n.children, n.code, level + 1));
+    }
+  }
+  return list;
+}
+
+export function findAccountCodeInTree(
+  nameOrCode: string,
+  customAccounts: CustomAccountRecord[] = []
+): string {
   const q = nameOrCode.trim();
   if (!q) return '';
   let found = '';
@@ -243,13 +334,14 @@ export function findAccountCodeInTree(nameOrCode: string): string {
       if (found) return;
     }
   };
-  walk(ACCOUNT_TREE_DATA);
+  walk(buildAccountTree(customAccounts));
   return found;
 }
 
 interface AccTreeDialogProps {
   open: boolean;
   zIndex: number;
+  customAccounts?: CustomAccountRecord[];
   onFocus: () => void;
   onClose: () => void;
   onAssignAccount?: (role: 'from' | 'to', accountName: string, accountCode: string) => void;
@@ -260,6 +352,7 @@ interface AccTreeDialogProps {
 export const AccTreeDialog: React.FC<AccTreeDialogProps> = ({
   open,
   zIndex,
+  customAccounts,
   onFocus,
   onClose,
   onAssignAccount,
@@ -269,6 +362,7 @@ export const AccTreeDialog: React.FC<AccTreeDialogProps> = ({
   const [searchText, setSearchText] = useState('');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [selectedNode, setSelectedNode] = useState<AccTreeNode | null>(null);
+  const treeData = useMemo(() => buildAccountTree(customAccounts), [customAccounts]);
 
   useEffect(() => {
     if (open) {
@@ -303,7 +397,7 @@ export const AccTreeDialog: React.FC<AccTreeDialogProps> = ({
       }
     };
 
-    for (const root of ACCOUNT_TREE_DATA) {
+    for (const root of treeData) {
       visit(root, []);
     }
     setExpanded(nextExpanded);
@@ -447,7 +541,7 @@ export const AccTreeDialog: React.FC<AccTreeDialogProps> = ({
 
         {/* TreeView Canvas */}
         <div className="flex-1 bg-[#cfdce8] border-t border-[#99a7b8] overflow-y-auto p-2 erp-scrollbar">
-          {renderTree(ACCOUNT_TREE_DATA)}
+          {renderTree(treeData)}
         </div>
 
         {/* Action Strip when selecting into Journal or Statement */}

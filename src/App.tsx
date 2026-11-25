@@ -1,6 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AccountOptionsDialog } from './components/AccountOptionsDialog';
 import {
+  AccountsOpsDialog,
+  MaterialsOpsDialog,
+  type AccountsOpsMode,
+  type MaterialsOpsMode,
+} from './components/AccountsAndMaterialsOpsDialogs';
+import {
   AccTreeDialog,
   DetailedAccountStatementDialog,
 } from './components/AccountsAndStatementDialogs';
@@ -15,8 +21,14 @@ import { AlertsDialog } from './components/AlertsDialog';
 import { BackupRestoreDialog, ReportsListDialog } from './components/BackupAndReportsDialogs';
 import { CompaniesYearsDialog } from './components/CompaniesYearsDialog';
 import { DesktopWorkspace } from './components/DesktopWorkspace';
+import {
+  HrOpsDialog,
+  ReportsSuiteDialog,
+  type HrOpsMode,
+  type ReportSuiteMode,
+} from './components/HrAndReportsOpsDialogs';
 import { InvoicesDialog, type InvoicesModalLaunch } from './components/InvoicesDialog';
-import { JournalDialog } from './components/JournalDialog';
+import { JournalDialog, type JournalModalLaunch } from './components/JournalDialog';
 import { MenuAndToolbar } from './components/MenuAndToolbar';
 import { MessageBox } from './components/MessageBox';
 import { PermissionsDialog } from './components/PermissionsDialog';
@@ -72,7 +84,11 @@ type WindowId =
   | 'systemCheck'
   | 'appointments'
   | 'changePassword'
-  | 'postDailyMovement';
+  | 'postDailyMovement'
+  | 'accountsOps'
+  | 'materialsOps'
+  | 'hrOps'
+  | 'reportsSuite';
 
 const INVOICE_ACTION_META: Record<string, InvoicesModalLaunch> = {
   'inv:new_sales': { mode: 'editor', kindTitle: 'فاتورة مبيعات جديدة' },
@@ -97,9 +113,27 @@ const INVOICE_ACTION_META: Record<string, InvoicesModalLaunch> = {
   'inv:browse_quote': { mode: 'browse', kindTitle: 'استعراض وتعديل عرض أسعار' },
   'inv:opening_inv': { mode: 'editor', kindTitle: 'مذكرة جرد إفتتاحي' },
   'inv:adjust_inv': { mode: 'editor', kindTitle: 'مذكرة جرد - تسوية مخزنية' },
+  'inv:end_period_inv': { mode: 'editor', kindTitle: 'مذكرة جرد نهاية الفترة' },
   'inv:count_invoices': { mode: 'browse', kindTitle: 'جرد فواتير' },
   'inv:profit_report': { mode: 'profit', kindTitle: 'تقرير ارباح الفواتير' },
   'inv:today_profit': { mode: 'profit', kindTitle: 'ارباح فواتير اليوم' },
+};
+
+const JOURNAL_ACTION_META: Record<string, JournalModalLaunch> = {
+  'jrn:opening': { mode: 'opening', title: 'القيد الإفتتاحي' },
+  'jrn:new_entry': { mode: 'new_entry', title: 'إدخال سند قيد جديد' },
+  'jrn:browse_entry': { mode: 'browse_entry', title: 'إستعراض وتعديل سندات قيد' },
+  'jrn:new_receipt': { mode: 'new_receipt', title: 'إدخال سند قبض جديد' },
+  'jrn:browse_receipt': { mode: 'browse_receipt', title: 'إستعراض وتعديل سندات القبض' },
+  'jrn:new_payment': { mode: 'new_payment', title: 'إدخال سند صرف جديد' },
+  'jrn:browse_payment': { mode: 'browse_payment', title: 'إستعراض وتعديل سندات الصرف' },
+  'jrn:check_collect': { mode: 'check_collect', title: 'تحصيل شيك' },
+  'jrn:comm_supplier': { mode: 'comm_supplier', title: 'عمولات نقدية من الموردين' },
+  'jrn:comm_customer': { mode: 'comm_customer', title: 'عمولات نقدية للزبائن' },
+  'jrn:edited': { mode: 'edited', title: 'استعراض القيود المعدله' },
+  'jrn:deleted': { mode: 'deleted', title: 'استعراض القيود المحذوفه' },
+  'jrn:gapped': { mode: 'gapped', title: 'استعراض القيود المحشورة' },
+  'jrn:cur_diff': { mode: 'cur_diff', title: 'استعراض قيود فروق العملة' },
 };
 
 export default function App() {
@@ -140,6 +174,10 @@ export default function App() {
     appointments: false,
     changePassword: false,
     postDailyMovement: false,
+    accountsOps: false,
+    materialsOps: false,
+    hrOps: false,
+    reportsSuite: false,
   });
 
   const [zOrder, setZOrder] = useState<Record<WindowId, number>>({
@@ -169,6 +207,10 @@ export default function App() {
     appointments: 66,
     changePassword: 68,
     postDailyMovement: 66,
+    accountsOps: 64,
+    materialsOps: 64,
+    hrOps: 64,
+    reportsSuite: 64,
   });
   const topZRef = useRef(72);
 
@@ -178,6 +220,14 @@ export default function App() {
   const [aiInitialMode, setAiInitialMode] = useState<'general' | 'invoice' | 'logo'>('general');
   const [aiInitialImage, setAiInitialImage] = useState<string | null>(null);
   const [journalPrefill, setJournalPrefill] = useState<ExtractedInvoiceData | null>(null);
+  const [journalLaunch, setJournalLaunch] = useState<JournalModalLaunch>({
+    mode: 'all',
+    title: 'اليومية العامة',
+  });
+  const [accountsOpsMode, setAccountsOpsMode] = useState<AccountsOpsMode>('add');
+  const [materialsOpsMode, setMaterialsOpsMode] = useState<MaterialsOpsMode>('add');
+  const [hrOpsMode, setHrOpsMode] = useState<HrOpsMode>('employees');
+  const [reportSuiteMode, setReportSuiteMode] = useState<ReportSuiteMode>('accSummary');
   const [backupMode, setBackupMode] = useState<'backup' | 'restore'>('backup');
   const [editingReportTpl, setEditingReportTpl] = useState<ReportTemplateItem | null>(null);
   const [creatingReportTpl, setCreatingReportTpl] = useState(false);
@@ -255,6 +305,31 @@ export default function App() {
         openWindow('invoices');
         return;
       }
+      if (actionKey.startsWith('jrn:') && JOURNAL_ACTION_META[actionKey]) {
+        setJournalLaunch(JOURNAL_ACTION_META[actionKey]);
+        openWindow('journal');
+        return;
+      }
+      if (actionKey.startsWith('acc:')) {
+        setAccountsOpsMode(actionKey.slice(4) as AccountsOpsMode);
+        openWindow('accountsOps');
+        return;
+      }
+      if (actionKey.startsWith('mat:')) {
+        setMaterialsOpsMode(actionKey.slice(4) as MaterialsOpsMode);
+        openWindow('materialsOps');
+        return;
+      }
+      if (actionKey.startsWith('hr:')) {
+        setHrOpsMode(actionKey.slice(3) as HrOpsMode);
+        openWindow('hrOps');
+        return;
+      }
+      if (actionKey.startsWith('rep:')) {
+        setReportSuiteMode(actionKey.slice(4) as ReportSuiteMode);
+        openWindow('reportsSuite');
+        return;
+      }
       switch (actionKey) {
         case 'props':
           setPropsInitialTab(0);
@@ -313,6 +388,7 @@ export default function App() {
           openWindow('excelImport');
           break;
         case 'journal':
+          setJournalLaunch({ mode: 'all', title: 'اليومية العامة' });
           openWindow('journal');
           break;
         case 'printSetup':
@@ -438,6 +514,27 @@ export default function App() {
       } else if (e.shiftKey && e.key === 'F12' && !e.ctrlKey) {
         e.preventDefault();
         handleAction('inv:browse_transfer');
+      } else if (e.ctrlKey && !e.altKey && !e.shiftKey) {
+        const lower = e.key.toLowerCase();
+        if (lower === 'x') {
+          e.preventDefault();
+          handleAction('detailedStatement');
+        } else if (lower === 'u') {
+          e.preventDefault();
+          handleAction('rep:dailyReport');
+        }
+      } else if (e.altKey && !e.ctrlKey && !e.shiftKey) {
+        const lower = e.key.toLowerCase();
+        if (lower === 'd') {
+          e.preventDefault();
+          handleAction('jrn:new_entry');
+        } else if (lower === 'r') {
+          e.preventDefault();
+          handleAction('jrn:new_receipt');
+        } else if (lower === 'w') {
+          e.preventDefault();
+          handleAction('jrn:new_payment');
+        }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -458,6 +555,135 @@ export default function App() {
       'قائمة الشركات': 'companiesPicker',
       'استيراد من اكسل': 'excelImport',
       'انهاء البرنامج': 'shutdown',
+      // الفواتير
+      'فاتورة مبيعات جديدة': 'inv:new_sales',
+      'فاتورة مشتريات جديدة': 'inv:new_purchase',
+      'مردود مبيعات جديدة': 'inv:new_sales_return',
+      'مردود مشتريات جديدة': 'inv:new_purchase_return',
+      'مذكرة ادخال جديدة': 'inv:new_in_note',
+      'مذكرة اخراج جديدة': 'inv:new_out_note',
+      'مذكرة نقل جديدة': 'inv:new_transfer',
+      'طلب شراء جديدة': 'inv:new_po',
+      'حجز مبيعات جديدة': 'inv:new_reserve',
+      'عرض أسعار': 'inv:new_quote',
+      'استعراض وتعديل فاتورة مبيعات': 'inv:browse_sales',
+      'استعراض وتعديل فاتورة مشتريات': 'inv:browse_purchase',
+      'استعراض وتعديل فاتورة مردود مبيعات': 'inv:browse_sales_return',
+      'استعراض وتعديل فاتورة مردود مشتريات': 'inv:browse_purchase_return',
+      'استعراض وتعديل مذكرة ادخال': 'inv:browse_in_note',
+      'استعراض وتعديل مذكرة اخراج': 'inv:browse_out_note',
+      'استعراض وتعديل مذكرة نقل': 'inv:browse_transfer',
+      'استعراض وتعديل طلب شراء': 'inv:browse_po',
+      'استعراض وتعديل حجز مبيعات': 'inv:browse_reserve',
+      'استعراض وتعديل عرض أسعار': 'inv:browse_quote',
+      'مذكرة جرد إفتتاحي': 'inv:opening_inv',
+      'مذكرة جرد - تسوية مخزنية': 'inv:adjust_inv',
+      'مذكرة جرد نهاية الفترة': 'inv:end_period_inv',
+      'جرد فواتير': 'inv:count_invoices',
+      'تقرير ارباح الفواتير': 'inv:profit_report',
+      'ارباح فواتير اليوم': 'inv:today_profit',
+      // الحسابات
+      'اضافة حساب جديد': 'acc:add',
+      'استعراض وتعديل الحسابات': 'acc:browse',
+      'اضافة مجموعة حسابات فرعيه': 'acc:addGroup',
+      'تعديل خصائص مجموعة حسابات فرعية': 'acc:editGroup',
+      'نقل حساب': 'acc:move',
+      'شجرة الحسابات': 'accTree',
+      'دليل الحسابات': 'acc:guide',
+      'الحسابات التجميعيه': 'acc:aggregate',
+      'مراكز الكلفة': 'acc:costCenters',
+      'استعراض صور العملاء والموردين': 'acc:partyImages',
+      // القيود
+      'القيد الإفتتاحي': 'jrn:opening',
+      'إدخال سند قيد جديد': 'jrn:new_entry',
+      'إستعراض وتعديل سندات قيد': 'jrn:browse_entry',
+      'إدخال سند قبض جديد': 'jrn:new_receipt',
+      'إستعراض وتعديل سندات القبض': 'jrn:browse_receipt',
+      'إدخال سند صرف جديد': 'jrn:new_payment',
+      'إستعراض وتعديل سندات الصرف': 'jrn:browse_payment',
+      'عمولات نقدية من الموردين': 'jrn:comm_supplier',
+      'عمولات نقدية للزبائن': 'jrn:comm_customer',
+      'تحصيل شيك': 'jrn:check_collect',
+      'استعراض القيود المعدله': 'jrn:edited',
+      'استعراض القيود المحذوفه': 'jrn:deleted',
+      'استعراض القيود المحشورة': 'jrn:gapped',
+      'استعراض قيود فروق العملة': 'jrn:cur_diff',
+      // المواد
+      'اضافة مادة جديدة': 'mat:add',
+      'استعراض وتعديل المواد': 'mat:browse',
+      'اضافة مجموعة مواد': 'mat:addGroup',
+      'تعديل المواصفات الأساسية لمجموعة مواد': 'mat:editSpecs',
+      'تعديل خصائص مشتركة لمجموعة مواد': 'mat:editProps',
+      'تعديل تسعيرات المواد': 'mat:editPrices',
+      'دليل المواد': 'mat:guide',
+      'المواد الرئيسية': 'mat:mainMaterials',
+      'المواد الإجمالية': 'mat:totalMaterials',
+      المستودعات: 'mat:warehouses',
+      المصاريف: 'mat:expenses',
+      'شجرة المواد': 'mat:tree',
+      'طباعة لصقات المواد': 'mat:labels',
+      'دورة استلام وتسليم': 'mat:handoverCycle',
+      'تقرير الاستلام والتسليم': 'mat:handoverReport',
+      'اتلاف مواد': 'mat:dispose',
+      // شؤون الموظفين
+      'اضافة موظف جديد': 'hr:employees',
+      'استعراض وتعديل الموظفين': 'hr:browseEmployees',
+      الاقسام: 'hr:departments',
+      'ادارة الحضور': 'hr:attendance',
+      'تسجيل حضور وانصراف يدوي': 'hr:manualAttendance',
+      'استعراض الحضور اليدوي': 'hr:manualAttendance',
+      'اضافة إجازة جديدة': 'hr:leaves',
+      'استعراض الإجازات': 'hr:leaves',
+      'جدول أجور جديد': 'hr:payroll',
+      'استعراض جدول الأجور': 'hr:payroll',
+      'اضافة سلفة نقدية': 'hr:advances',
+      'استعراض السلف النقدية': 'hr:advances',
+      'اضافة عقوبة جديدة': 'hr:penalties',
+      'استعراض العقوبات': 'hr:penalties',
+      'اضافة إضافي / مكافأة': 'hr:bonuses',
+      'استعراض الاضافات': 'hr:bonuses',
+      'تقرير تفصيلي للدوام': 'hr:reports',
+      'تقرير الرواتب والمستحقات': 'hr:payroll',
+      // تقارير الحسابات
+      'كشف حساب اجمالي': 'rep:accSummary',
+      'كشف حساب تفصيلي': 'detailedStatement',
+      'كشف حساب يومي': 'rep:dailyCashbook',
+      'تقرير الحركة اليومية': 'rep:dailyMovement',
+      'التقرير اليومي': 'rep:dailyReport',
+      'التقرير العام للعمليات': 'rep:generalOps',
+      'تقرير مراكزالتكلفة': 'rep:costCenterReport',
+      'تقارير سندات وشيكات القبض': 'rep:receiptsReport',
+      'تقارير سندات وشيكات الصرف': 'rep:paymentsReport',
+      'تقرير أعمار الذمم': 'rep:agingReport',
+      'تقرير مستخدم': 'rep:userReport',
+      'تقرير خطة التحصيل/الدفع': 'rep:collectionPlan',
+      // تقارير المواد
+      'حركة مادة تفصيلي': 'rep:matDetailMove',
+      'الحركة التفصيلية للمواد': 'rep:matAllDetailMove',
+      'الحركة الإجمالية للمواد': 'rep:matSummaryMove',
+      'حركة المواد حسب المستودع': 'rep:matWarehouseSummary',
+      'جرد مواد تفصيلي': 'rep:matDetailInv',
+      'صلاحية المواد': 'rep:matExpiry',
+      'استعراض المواد': 'rep:matBrowse',
+      'نواقص المواد والمتجاوزه الحد الدنى': 'rep:matMinAlerts',
+      'المواد المتجاوزه الحد الاعلى': 'rep:matMaxAlerts',
+      'المواد عديمة الحركة': 'rep:matStagnant',
+      'تقرير بالكميات الاساسية': 'rep:matBaseQty',
+      'تقرير الكفالات': 'rep:matWarranties',
+      // تقارير ختامية
+      'ميزان المراجعة الشهرية': 'rep:monthlyTrialBalance',
+      'ميزان المراجعة العامة': 'rep:generalTrialBalance',
+      'الميزانية الافتتاحية': 'rep:openingBalanceSheet',
+      'الميزانية الحالية': 'rep:currentBalanceSheet',
+      'حساب التشغيل': 'rep:operatingAccount',
+      'حساب المتاجرة': 'rep:tradingAccount',
+      'حساب الأرباح والخسائر': 'rep:profitAndLoss',
+      'تقارير الحسابات الختامية': 'rep:closingReports',
+      'تنظيم القيود الختامية': 'rep:organizeClosingEntries',
+      'استعراض القيود الختامية': 'rep:browseClosingEntries',
+      'الميزانية الختاميه': 'rep:finalBalanceSheet',
+      'التهيه لدوره قادمه': 'rep:nextPeriodPrep',
+      // الاعدادات و الأدوات
       'الاعدادات العامة': 'props',
       'صلاحيات المستخدمين': 'users',
       'خيارات الحسابات العامة': 'accountOptions',
@@ -682,11 +908,13 @@ export default function App() {
 
       <JournalDialog
         open={openWindows.journal}
+        launch={journalLaunch}
         zIndex={zOrder.journal}
         currentUser={state.currentUser}
         entries={state.journal}
         journalOptions={state.journalOptions}
         accountOptions={state.accountOptions}
+        customAccounts={state.customAccounts}
         prefillData={journalPrefill}
         onConsumePrefill={() => setJournalPrefill(null)}
         onFocus={() => focusWindow('journal')}
@@ -703,7 +931,16 @@ export default function App() {
         onDeleteEntry={(id) =>
           setState((prev) => ({
             ...prev,
-            journal: prev.journal.filter((e) => e.id !== id),
+            journal: prev.journal.map((e) =>
+              e.id === id
+                ? {
+                    ...e,
+                    deleted: true,
+                    deletedAt: new Date().toISOString().slice(0, 10),
+                    deletedBy: state.currentUser,
+                  }
+                : e
+            ),
           }))
         }
         onSaveJournalOptions={(journalOptions) =>
@@ -899,8 +1136,55 @@ export default function App() {
       <AccTreeDialog
         open={openWindows.accTree}
         zIndex={zOrder.accTree}
+        customAccounts={state.customAccounts}
         onFocus={() => focusWindow('accTree')}
         onClose={() => closeWindow('accTree')}
+        onNotify={notify}
+      />
+
+      <AccountsOpsDialog
+        open={openWindows.accountsOps}
+        mode={accountsOpsMode}
+        zIndex={zOrder.accountsOps}
+        customAccounts={state.customAccounts}
+        costCenters={state.costCenters}
+        journal={state.journal}
+        onFocus={() => focusWindow('accountsOps')}
+        onClose={() => closeWindow('accountsOps')}
+        onSaveCustomAccounts={(customAccounts) =>
+          setState((prev) => ({ ...prev, customAccounts }))
+        }
+        onSaveCostCenters={(costCenters) => setState((prev) => ({ ...prev, costCenters }))}
+        onShowMsg={showMsg}
+        onNotify={notify}
+      />
+
+      <MaterialsOpsDialog
+        open={openWindows.materialsOps}
+        mode={materialsOpsMode}
+        zIndex={zOrder.materialsOps}
+        currentUser={state.currentUser}
+        materials={state.importedMaterials}
+        groups={state.materialGroups}
+        warehouses={state.warehouses}
+        expenses={state.materialExpenses}
+        handovers={state.handovers}
+        disposals={state.disposals}
+        onFocus={() => focusWindow('materialsOps')}
+        onClose={() => closeWindow('materialsOps')}
+        onSaveMaterials={(importedMaterials) =>
+          setState((prev) => ({ ...prev, importedMaterials }))
+        }
+        onSaveGroups={(materialGroups) =>
+          setState((prev) => ({ ...prev, materialGroups }))
+        }
+        onSaveWarehouses={(warehouses) => setState((prev) => ({ ...prev, warehouses }))}
+        onSaveExpenses={(materialExpenses) =>
+          setState((prev) => ({ ...prev, materialExpenses }))
+        }
+        onSaveHandovers={(handovers) => setState((prev) => ({ ...prev, handovers }))}
+        onSaveDisposals={(disposals) => setState((prev) => ({ ...prev, disposals }))}
+        onShowMsg={showMsg}
         onNotify={notify}
       />
 
@@ -908,7 +1192,7 @@ export default function App() {
         open={openWindows.detailedStatement}
         zIndex={zOrder.detailedStatement}
         initialAccountName="الصندوق"
-        entries={state.journal}
+        entries={state.journal.filter((j) => !j.deleted)}
         onFocus={() => focusWindow('detailedStatement')}
         onClose={() => closeWindow('detailedStatement')}
         onOpenPrint={() => openWindow('printSetup')}
@@ -1090,6 +1374,71 @@ export default function App() {
           notify('تم تحديث كلمة السر بنجاح');
         }}
         onShowMsg={showMsg}
+      />
+
+      <HrOpsDialog
+        open={openWindows.hrOps}
+        mode={hrOpsMode}
+        zIndex={zOrder.hrOps}
+        employees={state.employees}
+        departments={state.departments}
+        attendance={state.attendance}
+        leaves={state.leaves}
+        hrAdjustments={state.hrAdjustments}
+        onFocus={() => focusWindow('hrOps')}
+        onClose={() => closeWindow('hrOps')}
+        onSaveEmployees={(employees) => setState((prev) => ({ ...prev, employees }))}
+        onSaveDepartments={(departments) => setState((prev) => ({ ...prev, departments }))}
+        onSaveAttendance={(attendance) => setState((prev) => ({ ...prev, attendance }))}
+        onSaveLeaves={(leaves) => setState((prev) => ({ ...prev, leaves }))}
+        onSaveAdjustments={(hrAdjustments) =>
+          setState((prev) => ({ ...prev, hrAdjustments }))
+        }
+        onShowMsg={showMsg}
+        onNotify={notify}
+      />
+
+      <ReportsSuiteDialog
+        open={openWindows.reportsSuite}
+        mode={reportSuiteMode}
+        zIndex={zOrder.reportsSuite}
+        state={state}
+        onFocus={() => focusWindow('reportsSuite')}
+        onClose={() => closeWindow('reportsSuite')}
+        onAddClosingEntries={(entries) =>
+          setState((prev) => ({
+            ...prev,
+            journal: [...entries, ...prev.journal],
+          }))
+        }
+        onAdvanceNextYear={(nextYear) =>
+          setState((prev) => {
+            const yearStr = String(nextYear);
+            const hasYear = prev.years.some((y) => y.year === yearStr);
+            return {
+              ...prev,
+              props: {
+                ...prev.props,
+                year: nextYear,
+                dateFrom: `${nextYear}-01-01`,
+                dateTo: `${nextYear}-12-31`,
+              },
+              years: hasYear
+                ? prev.years
+                : [
+                    ...prev.years,
+                    {
+                      m: prev.years.length + 1,
+                      year: yearStr,
+                      next: String(nextYear + 1),
+                      notes: 'دورة مالية جديدة',
+                    },
+                  ],
+            };
+          })
+        }
+        onShowMsg={showMsg}
+        onNotify={notify}
       />
 
       <MessageBox config={msgConfig} onResolve={handleMsgResolve} />

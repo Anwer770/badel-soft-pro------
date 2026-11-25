@@ -434,8 +434,9 @@ export const GeneralReportDialog: React.FC<GeneralReportDialogProps> = ({
   onFocus,
   onClose,
 }) => {
+  const activeJournal = state.journal.filter((j) => !j.deleted);
   const sumField = (key: 'rec' | 'pay' | 'dhm') =>
-    state.journal.reduce((acc, row) => acc + (parseFloat(row[key]) || 0), 0);
+    activeJournal.reduce((acc, row) => acc + (parseFloat(row[key]) || 0), 0);
 
   const totalRec = sumField('rec');
   const totalPay = sumField('pay');
@@ -493,14 +494,14 @@ export const GeneralReportDialog: React.FC<GeneralReportDialogProps> = ({
               </tr>
             </thead>
             <tbody>
-              {state.journal.length === 0 ? (
+              {activeJournal.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-8 text-center text-[#666]">
                     لا توجد حركات مسجلة في اليومية العامة حتى الآن.
                   </td>
                 </tr>
               ) : (
-                state.journal.map((j) => (
+                activeJournal.map((j) => (
                   <tr key={j.id} className="border-b border-[#e5e5e5]">
                     <td className="py-1.5 px-2 text-center border-l border-[#eee]">{j.at}</td>
                     <td className="py-1.5 px-2 border-l border-[#eee]">{j.stmt}</td>
@@ -674,7 +675,9 @@ export const PostDailyMovementDialog: React.FC<PostDailyMovementDialogProps> = (
   const [hasLoaded, setHasLoaded] = useState(false);
 
   const buildRows = (): MovementRow[] => {
-    const jRows: MovementRow[] = state.journal.map((j, idx) => ({
+    const jRows: MovementRow[] = state.journal
+      .filter((j) => !j.deleted)
+      .map((j, idx) => ({
       uid: `j-${j.id}`,
       source: 'journal',
       rawId: j.id,

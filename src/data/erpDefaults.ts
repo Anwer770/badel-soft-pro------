@@ -18,10 +18,18 @@ export function toEn(value: string): string {
   return String(value).replace(/[٠-٩]/g, (d) => String(AR_DIGITS.indexOf(d)));
 }
 
+export type MenuItemDef =
+  | string
+  | {
+      label: string;
+      shortcut?: string;
+      children?: string[];
+    };
+
 export const MENU_SECTIONS: {
   title: SectionKey;
   toolbarLabel: string;
-  items?: string[];
+  items?: MenuItemDef[];
   panel?: SectionKey;
 }[] = [
   {
@@ -45,14 +53,219 @@ export const MENU_SECTIONS: {
       'انهاء البرنامج',
     ],
   },
-  { title: 'الفواتير', toolbarLabel: 'الفواتير', panel: 'الفواتير' },
-  { title: 'الحسابات', toolbarLabel: 'الحسابات', panel: 'الحسابات' },
-  { title: 'القيود', toolbarLabel: 'القيود', panel: 'القيود' },
-  { title: 'المواد', toolbarLabel: 'المواد', panel: 'المواد' },
-  { title: 'شؤون الموظفين', toolbarLabel: 'شؤون\nالموظفين', panel: 'شؤون الموظفين' },
-  { title: 'تقارير الحسابات', toolbarLabel: 'تقارير\nالحسابات', panel: 'تقارير الحسابات' },
-  { title: 'تقارير المواد', toolbarLabel: 'تقارير المواد', panel: 'تقارير المواد' },
-  { title: 'تقارير ختامية', toolbarLabel: 'تقارير ختامية', panel: 'تقارير ختامية' },
+  {
+    title: 'الفواتير',
+    toolbarLabel: 'الفواتير',
+    panel: 'الفواتير',
+    items: [
+      {
+        label: 'ادخال فواتير جديدة',
+        children: [
+          'فاتورة مبيعات جديدة',
+          'فاتورة مشتريات جديدة',
+          'مردود مبيعات جديدة',
+          'مردود مشتريات جديدة',
+          'مذكرة ادخال جديدة',
+          'مذكرة اخراج جديدة',
+          'مذكرة نقل جديدة',
+          'طلب شراء جديدة',
+          'حجز مبيعات جديدة',
+          'عرض أسعار',
+        ],
+      },
+      {
+        label: 'استعراض وتعديل الفواتير',
+        children: [
+          'استعراض وتعديل فاتورة مبيعات',
+          'استعراض وتعديل فاتورة مشتريات',
+          'استعراض وتعديل فاتورة مردود مبيعات',
+          'استعراض وتعديل فاتورة مردود مشتريات',
+          'استعراض وتعديل مذكرة ادخال',
+          'استعراض وتعديل مذكرة اخراج',
+          'استعراض وتعديل مذكرة نقل',
+          'استعراض وتعديل طلب شراء',
+          'استعراض وتعديل حجز مبيعات',
+          'استعراض وتعديل عرض أسعار',
+        ],
+      },
+      'مذكرة جرد إفتتاحي',
+      'مذكرة جرد - تسوية مخزنية',
+      'مذكرة جرد نهاية الفترة',
+      'جرد فواتير',
+      'تقرير ارباح الفواتير',
+      'ارباح فواتير اليوم',
+    ],
+  },
+  {
+    title: 'الحسابات',
+    toolbarLabel: 'الحسابات',
+    panel: 'الحسابات',
+    items: [
+      'اضافة حساب جديد',
+      'استعراض وتعديل الحسابات',
+      'اضافة مجموعة حسابات فرعيه',
+      'تعديل خصائص مجموعة حسابات فرعية',
+      'نقل حساب',
+      'شجرة الحسابات',
+      'دليل الحسابات',
+      'الحسابات التجميعيه',
+      '---',
+      'مراكز الكلفة',
+      'استعراض صور العملاء والموردين',
+    ],
+  },
+  {
+    title: 'القيود',
+    toolbarLabel: 'القيود',
+    panel: 'القيود',
+    items: [
+      'القيد الإفتتاحي',
+      { label: 'إدخال سند قيد جديد', shortcut: 'Alt+D' },
+      'إستعراض وتعديل سندات قيد',
+      { label: 'إدخال سند قبض جديد', shortcut: 'Alt+R' },
+      'إستعراض وتعديل سندات القبض',
+      { label: 'إدخال سند صرف جديد', shortcut: 'Alt+W' },
+      'إستعراض وتعديل سندات الصرف',
+      'عمولات نقدية من الموردين',
+      'عمولات نقدية للزبائن',
+      '---',
+      {
+        label: 'التدقيق والمراجعة',
+        children: [
+          'تحصيل شيك',
+          'استعراض القيود المعدله',
+          'استعراض القيود المحذوفه',
+          'استعراض القيود المحشورة',
+        ],
+      },
+      'استعراض قيود فروق العملة',
+    ],
+  },
+  {
+    title: 'المواد',
+    toolbarLabel: 'المواد',
+    panel: 'المواد',
+    items: [
+      'اضافة مادة جديدة',
+      'استعراض وتعديل المواد',
+      'اضافة مجموعة مواد',
+      'تعديل المواصفات الأساسية لمجموعة مواد',
+      'تعديل خصائص مشتركة لمجموعة مواد',
+      'تعديل تسعيرات المواد',
+      '---',
+      'دليل المواد',
+      'المواد الرئيسية',
+      'المواد الإجمالية',
+      '---',
+      'المستودعات',
+      '---',
+      'المصاريف',
+      'شجرة المواد',
+      'طباعة لصقات المواد',
+      'دورة استلام وتسليم',
+      'تقرير الاستلام والتسليم',
+    ],
+  },
+  {
+    title: 'شؤون الموظفين',
+    toolbarLabel: 'شؤون\nالموظفين',
+    panel: 'شؤون الموظفين',
+    items: [
+      {
+        label: 'الموظفين',
+        children: ['اضافة موظف جديد', 'استعراض وتعديل الموظفين'],
+      },
+      'الاقسام',
+      'ادارة الحضور',
+      {
+        label: 'التسجيل اليدوي',
+        children: ['تسجيل حضور وانصراف يدوي', 'استعراض الحضور اليدوي'],
+      },
+      {
+        label: 'الإجازات',
+        children: ['اضافة إجازة جديدة', 'استعراض الإجازات'],
+      },
+      {
+        label: 'الرواتب',
+        children: ['جدول أجور جديد', 'استعراض جدول الأجور'],
+      },
+      {
+        label: 'السلف',
+        children: ['اضافة سلفة نقدية', 'استعراض السلف النقدية'],
+      },
+      {
+        label: 'العقوبات',
+        children: ['اضافة عقوبة جديدة', 'استعراض العقوبات'],
+      },
+      {
+        label: 'الاضافات',
+        children: ['اضافة إضافي / مكافأة', 'استعراض الاضافات'],
+      },
+      {
+        label: 'تقارير تفصيليه',
+        children: ['تقرير تفصيلي للدوام', 'تقرير الرواتب والمستحقات'],
+      },
+    ],
+  },
+  {
+    title: 'تقارير الحسابات',
+    toolbarLabel: 'تقارير\nالحسابات',
+    panel: 'تقارير الحسابات',
+    items: [
+      'كشف حساب اجمالي',
+      { label: 'كشف حساب تفصيلي', shortcut: 'Ctrl+X' },
+      'اليومية العامة',
+      'تقرير الحركة اليومية',
+      { label: 'التقرير اليومي', shortcut: 'Ctrl+U' },
+      'التقرير العام للعمليات',
+      'تقرير مراكزالتكلفة',
+      'تقارير سندات وشيكات القبض',
+      'تقارير سندات وشيكات الصرف',
+      'تقرير أعمار الذمم',
+      'تقرير مستخدم',
+      'تقرير خطة التحصيل/الدفع',
+    ],
+  },
+  {
+    title: 'تقارير المواد',
+    toolbarLabel: 'تقارير المواد',
+    panel: 'تقارير المواد',
+    items: [
+      'حركة مادة تفصيلي',
+      'الحركة التفصيلية للمواد',
+      {
+        label: 'الحركة الإجمالية للمواد',
+        children: ['الحركة الإجمالية للمواد', 'حركة المواد حسب المستودع'],
+      },
+      'جرد مواد تفصيلي',
+      'صلاحية المواد',
+      'استعراض المواد',
+      'نواقص المواد والمتجاوزه الحد الدنى',
+      'المواد المتجاوزه الحد الاعلى',
+      'المواد عديمة الحركة',
+      'تقرير بالكميات الاساسية',
+      'تقرير الكفالات',
+    ],
+  },
+  {
+    title: 'تقارير ختامية',
+    toolbarLabel: 'تقارير ختامية',
+    panel: 'تقارير ختامية',
+    items: [
+      'ميزان المراجعة الشهرية',
+      'ميزان المراجعة العامة',
+      'الميزانية الافتتاحية',
+      'الميزانية الحالية',
+      'حساب التشغيل',
+      'حساب المتاجرة',
+      'حساب الأرباح والخسائر',
+      'تقارير الحسابات الختامية',
+      'تنظيم القيود الختامية',
+      'استعراض القيود الختامية',
+      'الميزانية الختاميه',
+      'التهيه لدوره قادمه',
+    ],
+  },
   {
     title: 'الاعدادات',
     toolbarLabel: 'الاعدادات',
@@ -77,9 +290,6 @@ export const MENU_SECTIONS: {
       'تسجيل النظام',
       'فحص النظام',
       'مستعرض مواعيد اليوم',
-      '---',
-      'إعداد نماذج الطباعة',
-      'الاستوديو الذكي للصور والمستندات',
     ],
   },
 ];
@@ -444,6 +654,75 @@ export const INITIAL_STATE: ErpState = {
   reportTemplates: DEFAULT_REPORT_TEMPLATES,
   invoices: [],
   importedMaterials: [],
+  customAccounts: [],
+  costCenters: [
+    { id: 'cc-1', code: 'CC-01', name: 'المركز الرئيسي', parentCode: '', notes: 'الإدارة العامة' },
+    { id: 'cc-2', code: 'CC-02', name: 'قسم المبيعات والتوزيع', parentCode: 'CC-01', notes: '' },
+  ],
+  materialGroups: [
+    {
+      id: 'mg-1',
+      code: '01',
+      name: 'المواد الرئيسية',
+      parentCode: '',
+      defaultUnit: 'حبة',
+      taxRate: 0,
+      requireExpiry: false,
+      notes: 'مجموعة افتراضية للمواد',
+    },
+    {
+      id: 'mg-2',
+      code: '02',
+      name: 'مواد غذائية واستهلاكية',
+      parentCode: '01',
+      defaultUnit: 'كرتون',
+      taxRate: 5,
+      requireExpiry: true,
+      notes: '',
+    },
+  ],
+  warehouses: [
+    {
+      id: 'wh-1',
+      code: '1',
+      name: 'مستودع1',
+      location: 'المقر الرئيسي',
+      keeper: 'أمين المخزن',
+      notes: 'المستودع الافتراضي',
+    },
+  ],
+  materialExpenses: [
+    {
+      id: 'me-1',
+      code: 'EXP-01',
+      name: 'مصاريف نقل وشحن',
+      accountName: 'مواصلات وتنقلات',
+      defaultAmount: 0,
+      notes: '',
+    },
+  ],
+  handovers: [],
+  disposals: [],
+  employees: [
+    {
+      id: 'emp-1',
+      code: '1001',
+      name: 'أحمد محمد علي',
+      department: 'الإدارة المالية',
+      jobTitle: 'محاسب عام',
+      baseSalary: 180000,
+      phone: '771000111',
+      hireDate: '2025-01-01',
+      active: true,
+    },
+  ],
+  departments: [
+    { id: 'dep-1', code: 'D-01', name: 'الإدارة المالية', manager: 'أحمد محمد علي', notes: '' },
+    { id: 'dep-2', code: 'D-02', name: 'المبيعات والمخازن', manager: 'admin', notes: '' },
+  ],
+  attendance: [],
+  leaves: [],
+  hrAdjustments: [],
   license: {
     productCode: 'S1BCNSAG901734',
     licenseCode: 'qIOSfWU4V5nDqkmfRwj3V3G8pQzBHRduww==',
@@ -587,6 +866,30 @@ export function loadErpState(): ErpState {
         : DEFAULT_REPORT_TEMPLATES,
       invoices: Array.isArray(parsed.invoices) ? parsed.invoices : [],
       importedMaterials: Array.isArray(parsed.importedMaterials) ? parsed.importedMaterials : [],
+      customAccounts: Array.isArray(parsed.customAccounts) ? parsed.customAccounts : [],
+      costCenters: Array.isArray(parsed.costCenters) && parsed.costCenters.length
+        ? parsed.costCenters
+        : INITIAL_STATE.costCenters,
+      materialGroups: Array.isArray(parsed.materialGroups) && parsed.materialGroups.length
+        ? parsed.materialGroups
+        : INITIAL_STATE.materialGroups,
+      warehouses: Array.isArray(parsed.warehouses) && parsed.warehouses.length
+        ? parsed.warehouses
+        : INITIAL_STATE.warehouses,
+      materialExpenses: Array.isArray(parsed.materialExpenses) && parsed.materialExpenses.length
+        ? parsed.materialExpenses
+        : INITIAL_STATE.materialExpenses,
+      handovers: Array.isArray(parsed.handovers) ? parsed.handovers : [],
+      disposals: Array.isArray(parsed.disposals) ? parsed.disposals : [],
+      employees: Array.isArray(parsed.employees) && parsed.employees.length
+        ? parsed.employees
+        : INITIAL_STATE.employees,
+      departments: Array.isArray(parsed.departments) && parsed.departments.length
+        ? parsed.departments
+        : INITIAL_STATE.departments,
+      attendance: Array.isArray(parsed.attendance) ? parsed.attendance : [],
+      leaves: Array.isArray(parsed.leaves) ? parsed.leaves : [],
+      hrAdjustments: Array.isArray(parsed.hrAdjustments) ? parsed.hrAdjustments : [],
       currencies: parsed.currencies?.length ? parsed.currencies : INITIAL_STATE.currencies,
       appointments: Array.isArray(parsed.appointments)
         ? parsed.appointments

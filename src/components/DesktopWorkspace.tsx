@@ -13,6 +13,7 @@ interface DesktopWorkspaceProps {
 interface PanelButtonDef {
   key: string;
   label: string;
+  textBlue?: boolean;
 }
 
 const SETTINGS_BUTTONS: PanelButtonDef[] = [
@@ -34,7 +35,6 @@ const FILE_BUTTONS: (PanelButtonDef | null)[] = [
   { key: 'excelImport', label: 'استيراد من اكسل' },
   null,
   { key: 'shutdown', label: 'انهاء البرنامج' },
-  { key: 'aiStudioGenerate', label: 'الاستوديو الذكي للصور' },
 ];
 
 const TOOLS_BUTTONS: (PanelButtonDef | null)[] = [
@@ -81,41 +81,95 @@ const INVOICES_BUTTONS: PanelButtonDef[] = [
 const SECTION_SHORTCUTS: Partial<Record<SectionKey, PanelButtonDef[]>> = {
   الفواتير: INVOICES_BUTTONS,
   الحسابات: [
-    { key: 'journal', label: 'اليومية العامة' },
+    { key: 'acc:add', label: 'اضافة حساب جديد' },
+    { key: 'acc:browse', label: 'استعراض وتعديل الحسابات' },
+    { key: 'acc:addGroup', label: 'اضافة مجموعة حسابات فرعيه' },
+    { key: 'acc:editGroup', label: 'تعديل خصائص مجموعة حسابات فرعية' },
+    { key: 'acc:move', label: 'نقل حساب' },
     { key: 'accTree', label: 'شجرة الحسابات' },
-    { key: 'detailedStatement', label: 'كشف حساب تفصيلي' },
-    { key: 'accountOptions', label: 'خيارات الحسابات العامة' },
-    { key: 'currencies', label: 'قائمة العملات' },
+    { key: 'acc:guide', label: 'دليل الحسابات' },
+    { key: 'acc:aggregate', label: 'الحسابات التجميعيه' },
+    { key: 'acc:costCenters', label: 'مراكز الكلفة' },
+    { key: 'acc:partyImages', label: 'استعراض صور العملاء والموردين' },
   ],
   القيود: [
-    { key: 'journal', label: 'اليومية العامة' },
-    { key: 'aiStudioAnalyze', label: 'استخراج قيد من صورة مستند' },
-    { key: 'generalReport', label: 'مراجعة القيود اليومية' },
+    { key: 'jrn:opening', label: 'القيد الإفتتاحي' },
+    { key: 'jrn:new_entry', label: 'إدخال سند قيد جديد\nAlt+D' },
+    { key: 'jrn:browse_entry', label: 'إستعراض وتعديل سندات قيد' },
+    { key: 'jrn:new_receipt', label: 'إدخال سند قبض جديد\nAlt+R' },
+    { key: 'jrn:browse_receipt', label: 'إستعراض وتعديل سندات القبض' },
+    { key: 'jrn:new_payment', label: 'إدخال سند صرف جديد\nAlt+W' },
+    { key: 'jrn:browse_payment', label: 'إستعراض وتعديل سندات الصرف' },
+    { key: 'jrn:check_collect', label: 'تحصيل شيك', textBlue: true },
+    { key: 'jrn:comm_supplier', label: 'عمولات نقدية من الموردين' },
+    { key: 'jrn:comm_customer', label: 'عمولات نقدية للزبائن' },
+    { key: 'jrn:edited', label: 'استعراض القيود المعدله' },
+    { key: 'jrn:deleted', label: 'استعراض القيود المحذوفه' },
+    { key: 'jrn:gapped', label: 'استعراض القيود المحشورة' },
   ],
   المواد: [
-    { key: 'propsOther', label: 'خيارات الجرد وصلاحية المواد' },
-    { key: 'accountOptions', label: 'طريقة تسعير الجرد' },
-    { key: 'alerts', label: 'تنبيهات انخفاض وصلاحية المواد' },
+    { key: 'mat:add', label: 'اضافة مادة جديدة' },
+    { key: 'mat:browse', label: 'استعراض وتعديل المواد' },
+    { key: 'mat:addGroup', label: 'اضافة مجموعة مواد' },
+    { key: 'mat:editSpecs', label: 'تعديل المواصفات الأساسية لمجموعة مواد' },
+    { key: 'mat:mainMaterials', label: 'المواد الرئيسية' },
+    { key: 'mat:totalMaterials', label: 'المواد الإجمالية' },
+    { key: 'mat:warehouses', label: 'المستودعات' },
+    { key: 'mat:expenses', label: 'المصاريف' },
+    { key: 'mat:tree', label: 'شجرة المواد' },
+    { key: 'mat:labels', label: 'طباعة لصقات المواد' },
+    { key: 'mat:handoverCycle', label: 'دورة استلام وتسليم' },
+    { key: 'mat:handoverReport', label: 'تقرير الاستلام والتسليم' },
+    { key: 'mat:dispose', label: 'اتلاف مواد', textBlue: true },
   ],
   'شؤون الموظفين': [
-    { key: 'users', label: 'قائمة المستخدمين والصلاحيات' },
-    { key: 'propsOther', label: 'ضبط نسبة مسحوبات الموظفين' },
-    { key: 'aiStudioGenerate', label: 'تصميم بطاقات وشعارات الموظفين' },
+    { key: 'hr:employees', label: 'اضافة موظف جديد' },
+    { key: 'hr:browseEmployees', label: 'استعراض وتعديل الموظفين' },
+    { key: 'hr:departments', label: 'الاقسام' },
+    { key: 'hr:attendance', label: 'ادارة الحضور' },
+    { key: 'hr:manualAttendance', label: 'التسجيل اليدوي' },
+    { key: 'hr:leaves', label: 'الإجازات' },
+    { key: 'hr:payroll', label: 'الرواتب' },
+    { key: 'hr:advances', label: 'السلف' },
+    { key: 'hr:penalties', label: 'العقوبات' },
+    { key: 'hr:bonuses', label: 'الاضافات' },
+    { key: 'hr:reports', label: 'تقارير تفصيليه' },
   ],
   'تقارير الحسابات': [
+    { key: 'rep:accSummary', label: 'كشف حساب اجمالي' },
     { key: 'detailedStatement', label: 'كشف حساب تفصيلي' },
-    { key: 'generalReport', label: 'التقرير العام للحسابات' },
-    { key: 'printSetup', label: 'إعداد نماذج الطباعة' },
-    { key: 'pagesSetup', label: 'تصميم الترويسة والتذيل' },
+    { key: 'rep:dailyCashbook', label: 'كشف حساب يومي' },
+    { key: 'rep:dailyMovement', label: 'تقرير الحركة اليومية' },
+    { key: 'rep:dailyReport', label: 'التقرير اليومي' },
+    { key: 'rep:generalOps', label: 'التقرير العام للعمليات' },
+    { key: 'rep:costCenterReport', label: 'تقرير مراكزالتكلفة' },
+    { key: 'rep:receiptsReport', label: 'تقارير سندات وشيكات القبض' },
+    { key: 'rep:paymentsReport', label: 'تقارير سندات وشيكات الصرف' },
+    { key: 'rep:agingReport', label: 'تقرير أعمار الذمم' },
+    { key: 'rep:userReport', label: 'تقرير مستخدم' },
   ],
   'تقارير المواد': [
-    { key: 'generalReport', label: 'التقرير العام' },
-    { key: 'printSetup', label: 'إعداد نماذج الطباعة' },
+    { key: 'rep:matDetailMove', label: 'حركة مادة تفصيلي' },
+    { key: 'rep:matExpiry', label: 'صلاحية المواد' },
+    { key: 'rep:matDetailInv', label: 'جرد مواد تفصيلي' },
+    { key: 'rep:matBrowse', label: 'استعراض المواد' },
+    { key: 'rep:matMinAlerts', label: 'نواقص المواد والمتجاوزه الحد الدنى' },
+    { key: 'rep:matMaxAlerts', label: 'المواد المتجاوزه الحد الاعلى' },
+    { key: 'rep:matStagnant', label: 'المواد عديمة الحركة' },
+    { key: 'rep:matWarranties', label: 'تقرير الكفالات' },
   ],
   'تقارير ختامية': [
-    { key: 'generalReport', label: 'ملخص الأرصدة الختامي' },
-    { key: 'propsFiscal', label: 'إعدادات الفترة المالية' },
-    { key: 'printSetup', label: 'إعداد نماذج الطباعة' },
+    { key: 'rep:monthlyTrialBalance', label: 'ميزان المراجعة الشهرية' },
+    { key: 'rep:generalTrialBalance', label: 'ميزان المراجعة العامة' },
+    { key: 'rep:openingBalanceSheet', label: 'الميزانية الافتتاحية' },
+    { key: 'rep:currentBalanceSheet', label: 'الميزانية الحالية' },
+    { key: 'rep:operatingAccount', label: 'حساب التشغيل' },
+    { key: 'rep:tradingAccount', label: 'حساب المتاجرة' },
+    { key: 'rep:profitAndLoss', label: 'حساب الأرباح والخسائر' },
+    { key: 'rep:organizeClosingEntries', label: 'تنضيم القيود' },
+    { key: 'rep:browseClosingEntries', label: 'استعراض القيود الختامية' },
+    { key: 'rep:finalBalanceSheet', label: 'الميزانية الختاميه' },
+    { key: 'rep:nextPeriodPrep', label: 'التهيه لدوره قادمه' },
   ],
 };
 
@@ -546,7 +600,9 @@ export const DesktopWorkspace: React.FC<DesktopWorkspaceProps> = ({
                   key={slot.key}
                   type="button"
                   onClick={() => onAction(slot.key)}
-                  className={`h-[74px] sm:h-[82px] border-2 border-black px-2 text-[14px] sm:text-[15px] font-bold text-black flex items-center justify-center text-center leading-snug whitespace-pre-line cursor-pointer transition-colors ${
+                  className={`h-[74px] sm:h-[82px] border-2 border-black px-2 text-[14px] sm:text-[15px] font-bold flex items-center justify-center text-center leading-snug whitespace-pre-line cursor-pointer transition-colors ${
+                    slot.textBlue ? 'text-[#0000cc]' : 'text-black'
+                  } ${
                     isSelected
                       ? 'bg-[#a3a5d8] shadow-[inset_0_0_0_1px_#000]'
                       : 'bg-[#c0c0ff] hover:bg-[#b0b0ff] active:bg-[#9c9cf5]'

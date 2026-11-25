@@ -50,6 +50,85 @@ export interface JournalEntry {
   editCount?: number;
   posted?: boolean;
   postedAt?: string;
+  voucherType?: 'opening' | 'entry' | 'receipt' | 'payment' | 'check' | 'commission' | 'cur_diff';
+  deleted?: boolean;
+  deletedAt?: string;
+  deletedBy?: string;
+}
+
+export interface CustomAccountRecord {
+  code: string;
+  name: string;
+  parentCode: string;
+  kind: 'folder' | 'leaf';
+  isAggregate?: boolean;
+  phone?: string;
+  address?: string;
+  notes?: string;
+  imageData?: string;
+}
+
+export interface CostCenterRecord {
+  id: string;
+  code: string;
+  name: string;
+  parentCode: string;
+  notes: string;
+}
+
+export interface MaterialGroupRecord {
+  id: string;
+  code: string;
+  name: string;
+  parentCode: string;
+  defaultUnit: string;
+  taxRate: number;
+  requireExpiry: boolean;
+  notes: string;
+}
+
+export interface WarehouseRecord {
+  id: string;
+  code: string;
+  name: string;
+  location: string;
+  keeper: string;
+  notes: string;
+}
+
+export interface MaterialExpenseRecord {
+  id: string;
+  code: string;
+  name: string;
+  accountName: string;
+  defaultAmount: number;
+  notes: string;
+}
+
+export interface MaterialHandoverRecord {
+  id: string;
+  number: string;
+  date: string;
+  fromEmployee: string;
+  toEmployee: string;
+  warehouse: string;
+  itemName: string;
+  qty: number;
+  status: 'مستلم' | 'مسلم' | 'قيد المراجعة';
+  notes: string;
+}
+
+export interface MaterialDisposalRecord {
+  id: string;
+  number: string;
+  date: string;
+  warehouse: string;
+  itemCode: string;
+  itemName: string;
+  qty: number;
+  cost: number;
+  reason: string;
+  by: string;
 }
 
 export interface JournalOptionsState {
@@ -193,6 +272,7 @@ export interface ImportedMaterialItem {
   unit1: string;
   unit2: string;
   expiryDate: string;
+  groupCode?: string;
 }
 
 export interface LicenseState {
@@ -213,6 +293,55 @@ export interface AppointmentItem {
   soundFile: string;
 }
 
+export interface EmployeeRecord {
+  id: string;
+  code: string;
+  name: string;
+  department: string;
+  jobTitle: string;
+  baseSalary: number;
+  phone: string;
+  hireDate: string;
+  active: boolean;
+}
+
+export interface DepartmentRecord {
+  id: string;
+  code: string;
+  name: string;
+  manager: string;
+  notes: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  date: string;
+  employeeName: string;
+  checkIn: string;
+  checkOut: string;
+  status: 'حاضر' | 'متأخر' | 'غائب' | 'إجازة';
+  notes: string;
+}
+
+export interface LeaveRecord {
+  id: string;
+  employeeName: string;
+  leaveType: 'سنوية' | 'مرضية' | 'اضطرارية' | 'بدون راتب';
+  fromDate: string;
+  toDate: string;
+  days: number;
+  notes: string;
+}
+
+export interface HrAdjustmentRecord {
+  id: string;
+  kind: 'advance' | 'penalty' | 'bonus';
+  date: string;
+  employeeName: string;
+  amount: number;
+  reason: string;
+}
+
 export interface ErpState {
   currentUser: string;
   activeBranch: string;
@@ -224,6 +353,18 @@ export interface ErpState {
   reportTemplates: ReportTemplateItem[];
   invoices: InvoiceRecord[];
   importedMaterials: ImportedMaterialItem[];
+  customAccounts: CustomAccountRecord[];
+  costCenters: CostCenterRecord[];
+  materialGroups: MaterialGroupRecord[];
+  warehouses: WarehouseRecord[];
+  materialExpenses: MaterialExpenseRecord[];
+  handovers: MaterialHandoverRecord[];
+  disposals: MaterialDisposalRecord[];
+  employees: EmployeeRecord[];
+  departments: DepartmentRecord[];
+  attendance: AttendanceRecord[];
+  leaves: LeaveRecord[];
+  hrAdjustments: HrAdjustmentRecord[];
   license: LicenseState;
   props: GeneralPropsState;
   accountOptions: AccountOptionsState;

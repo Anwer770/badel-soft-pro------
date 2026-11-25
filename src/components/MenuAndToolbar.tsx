@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MENU_SECTIONS } from '../data/erpDefaults';
+import { MENU_SECTIONS, type MenuItemDef } from '../data/erpDefaults';
 import type { SectionKey } from '../types/erp';
 
 interface MenuAndToolbarProps {
@@ -21,10 +21,11 @@ export const MenuAndToolbar: React.FC<MenuAndToolbarProps> = ({
 }) => {
   const [openMenu, setOpenMenu] = useState<{
     section: SectionKey;
-    items: string[];
+    items: MenuItemDef[];
     top: number;
     right: number;
   } | null>(null);
+  const [openSubIdx, setOpenSubIdx] = useState<number | null>(null);
 
   const toolbarScrollRef = useRef<HTMLDivElement>(null);
 
@@ -33,6 +34,7 @@ export const MenuAndToolbar: React.FC<MenuAndToolbarProps> = ({
       const target = e.target as HTMLElement;
       if (!target.closest('[data-erp-dropdown]') && !target.closest('[data-erp-menuitem]')) {
         setOpenMenu(null);
+        setOpenSubIdx(null);
       }
     };
     document.addEventListener('click', close);
@@ -47,9 +49,11 @@ export const MenuAndToolbar: React.FC<MenuAndToolbarProps> = ({
     if (sec.items && sec.items.length > 0) {
       if (openMenu?.section === sec.title) {
         setOpenMenu(null);
+        setOpenSubIdx(null);
         return;
       }
       const rect = e.currentTarget.getBoundingClientRect();
+      setOpenSubIdx(null);
       setOpenMenu({
         section: sec.title,
         items: sec.items,
@@ -58,6 +62,7 @@ export const MenuAndToolbar: React.FC<MenuAndToolbarProps> = ({
       });
     } else {
       setOpenMenu(null);
+      setOpenSubIdx(null);
       onSelectSection(sec.title);
     }
   };
@@ -99,24 +104,82 @@ export const MenuAndToolbar: React.FC<MenuAndToolbarProps> = ({
           style={{ top: openMenu.top, right: openMenu.right }}
           className="fixed z-[250] min-w-[270px] bg-white border border-[#889] shadow-lg p-1"
         >
-          {openMenu.items.map((item, idx) =>
-            item === '---' ? (
-              <div key={`sep-${idx}`} className="my-1 border-t border-[#d8d8d8]" />
-            ) : (
-              <button
-                key={item}
-                type="button"
-                onClick={() => {
-                  const sec = openMenu.section;
-                  setOpenMenu(null);
-                  onDropdownAction(sec, item);
+          {openMenu.items.map((item, idx) => {
+            if (item === '---') {
+              return <div key={`sep-${idx}`} className="my-1 border-t border-[#d8d8d8]" />;
+            }
+
+            const label = typeof item === 'string' ? item : item.label;
+            const shortcut = typeof item === 'string' ? undefined : item.shortcut;
+            const children = typeof item === 'string' ? undefined : item.children;
+            const hasChildren = Boolean(children && children.length > 0);
+            const isSubOpen = hasChildren && openSubIdx === idx;
+
+            return (
+              <div
+                key={`${label}-${idx}`}
+                className="relative"
+                onMouseEnter={() => {
+                  if (hasChildren) setOpenSubIdx(idx);
+                  else setOpenSubIdx(null);
                 }}
-                className="w-full text-right px-4 py-1.5 text-[14px] font-semibold text-black border border-transparent hover:bg-[#cde1f7] hover:border-[#79a8d9] cursor-pointer block"
               >
-                {item}
-              </button>
-            )
-          )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (hasChildren) {
+                      setOpenSubIdx((prev) => (prev === idx ? null : idx));
+                      return;
+                    }
+                    const sec = openMenu.section;
+                    setOpenMenu(null);
+                    setOpenSubIdx(null);
+                    onDropdownAction(sec, label);
+                  }}
+                  className={`w-full text-right px-4 py-1.5 text-[14px] font-semibold text-black border flex items-center justify-between gap-4 cursor-pointer ${
+                    isSubOpen
+                      ? 'bg-[#cde1f7] border-[#79a8d9]'
+                      : 'border-transparent hover:bg-[#cde1f7] hover:border-[#79a8d9]'
+                  }`}
+                >
+                  <span>{label}</span>
+                  {shortcut && (
+                    <span dir="ltr" className="text-[13px] font-bold text-[#222] shrink-0">
+                      {shortcut}
+                    </span>
+                  )}
+                  {hasChildren && (
+                    <span className="text-[11px] text-[#222] shrink-0 mr-auto">◀</span>
+                  )}
+                </button>
+
+                {isSubOpen && children && (
+                  <div
+                    data-erp-dropdown
+                    dir="rtl"
+                    className="absolute top-0 left-full ml-[2px] min-w-[260px] bg-white border border-[#889] shadow-lg p-1 z-[260]"
+                  >
+                    {children.map((subItem) => (
+                      <button
+                        key={subItem}
+                        type="button"
+                        onClick={() => {
+                          const sec = openMenu.section;
+                          setOpenMenu(null);
+                          setOpenSubIdx(null);
+                          onDropdownAction(sec, subItem);
+                        }}
+                        className="w-full text-right px-4 py-1.5 text-[14px] font-semibold text-black border border-transparent hover:bg-[#cde1f7] hover:border-[#79a8d9] cursor-pointer block"
+                      >
+                        {subItem}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

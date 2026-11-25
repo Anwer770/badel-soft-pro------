@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type {
   AccountOptionsState,
+  CustomAccountRecord,
   ExtractedInvoiceData,
   JournalEntry,
   JournalOptionsState,
@@ -36,13 +37,37 @@ const BASE_ACCOUNTS: AccountCatalogItem[] = [
   { code: '1210301', name: 'مستودع1', category: 'المخزون' },
 ];
 
+export type JournalLaunchMode =
+  | 'all'
+  | 'opening'
+  | 'new_entry'
+  | 'browse_entry'
+  | 'new_receipt'
+  | 'browse_receipt'
+  | 'new_payment'
+  | 'browse_payment'
+  | 'check_collect'
+  | 'comm_supplier'
+  | 'comm_customer'
+  | 'edited'
+  | 'deleted'
+  | 'gapped'
+  | 'cur_diff';
+
+export interface JournalModalLaunch {
+  mode: JournalLaunchMode;
+  title: string;
+}
+
 interface JournalDialogProps {
   open: boolean;
+  launch?: JournalModalLaunch;
   zIndex: number;
   currentUser: string;
   entries: JournalEntry[];
   journalOptions: JournalOptionsState;
   accountOptions: AccountOptionsState;
+  customAccounts?: CustomAccountRecord[];
   prefillData: ExtractedInvoiceData | null;
   onConsumePrefill: () => void;
   onFocus: () => void;
@@ -59,11 +84,13 @@ interface JournalDialogProps {
 
 export const JournalDialog: React.FC<JournalDialogProps> = ({
   open,
+  launch,
   zIndex,
   currentUser,
   entries,
   journalOptions,
   accountOptions,
+  customAccounts,
   prefillData,
   onConsumePrefill,
   onFocus,
@@ -87,6 +114,7 @@ export const JournalDialog: React.FC<JournalDialogProps> = ({
   const [toAcc, setToAcc] = useState('');
   const [cur, setCur] = useState('ريال يمني');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeMode, setActiveMode] = useState<JournalLaunchMode>(launch?.mode || 'all');
 
   // Sub-modals
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -97,6 +125,45 @@ export const JournalDialog: React.FC<JournalDialogProps> = ({
   useEffect(() => {
     setDraftOptions(journalOptions);
   }, [journalOptions]);
+
+  useEffect(() => {
+    if (!open) return;
+    const mode = launch?.mode || 'all';
+    setActiveMode(mode);
+    setSelectedId(null);
+    if (prefillData) return;
+
+    if (mode === 'opening') {
+      setFromAcc('الصندوق');
+      setToAcc('رأس المال المقدم .');
+      setStmt('القيد الإفتتاحي');
+      setRec('');
+      setPay('');
+      setDhm('');
+    } else if (mode === 'new_receipt') {
+      setFromAcc('الصندوق');
+      setToAcc('الزبائن');
+      setStmt('سند قبض نقدي');
+    } else if (mode === 'new_payment') {
+      setFromAcc('الموردين');
+      setToAcc('الصندوق');
+      setStmt('سند صرف نقدي');
+    } else if (mode === 'check_collect') {
+      setFromAcc('البنك');
+      setToAcc('حساب الشيكات الواردة');
+      setStmt('تحصيل شيك');
+    } else if (mode === 'comm_supplier') {
+      setFromAcc('الصندوق');
+      setToAcc('الموردين');
+      setStmt('عمولات نقدية من الموردين');
+    } else if (mode === 'comm_customer') {
+      setFromAcc('الزبائن');
+      setToAcc('الصندوق');
+      setStmt('عمولات نقدية للزبائن');
+    } else if (mode === 'new_entry') {
+      setStmt('سند قيد يومية');
+    }
+  }, [open, launch, prefillData]);
 
   const accountCatalog = useMemo(() => {
     const map = new Map<string, AccountCatalogItem>();
@@ -245,6 +312,16 @@ export const JournalDialog: React.FC<JournalDialogProps> = ({
       return;
     }
 
+    const inferVoucherType = (): JournalEntry['voucherType'] => {
+      if (activeMode === 'opening') return 'opening';
+      if (activeMode === 'new_receipt' || activeMode === 'browse_receipt') return 'receipt';
+      if (activeMode === 'new_payment' || activeMode === 'browse_payment') return 'payment';
+      if (activeMode === 'check_collect') return 'check';
+      if (activeMode === 'comm_supplier' || activeMode === 'comm_customer') return 'commission';
+      if (activeMode === 'cur_diff') return 'cur_diff';
+      return 'entry';
+    };
+
     const entry: JournalEntry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       rec: rec.trim(),
@@ -260,6 +337,8 @@ export const JournalDialog: React.FC<JournalDialogProps> = ({
       updatedBy: '',
       updatedAt: '',
       editCount: 0,
+      voucherType: inferVoucherType(),
+      deleted: false,
     };
     onAddEntry(entry);
     clearNonStickyFields();
@@ -344,10 +423,57 @@ export const JournalDialog: React.FC<JournalDialogProps> = ({
     (columns.showUpdatedAt ? 1 : 0) +
     (columns.showEditCount ? 1 : 0);
 
+  const displayedEntries = useMemo(() => {
+    if (activeMode === 'deleted') {
+      return entries.filter((e) => Boolean(e.deleted));
+    }
+    const active = entries.filter((e) => !e.deleted);
+    switch (activeMode) {
+      case 'opening':
+        return active.filter((e) => e.voucherType === 'opening' || e.stmt.includes('افتتاح') || e.stmt.includes('إفتتاحي'));
+      case 'browse_receipt':
+        return active.filter((e) => e.voucherType === 'receipt' || Boolean(e.rec));
+      case 'browse_payment':
+        return active.filter((e) => e.voucherType === 'payment' || Boolean(e.pay));
+      case 'browse_entry':
+        return active.filter((e) => !e.voucherType || e.voucherType === 'entry');
+      case 'check_collect':
+        return active.filter((e) => e.voucherType === 'check' || e.stmt.includes('شيك'));
+      case 'comm_supplier':
+      case 'comm_customer':
+        return active.filter((e) => e.voucherType === 'commission' || e.stmt.includes('عمول'));
+      case 'edited':
+        return active.filter((e) => (e.editCount || 0) > 0);
+      case 'gapped': {
+        const docs = active
+          .map((e) => Number(e.doc))
+          .filter((n) => Number.isFinite(n) && n > 0)
+          .sort((a, b) => a - b);
+        if (docs.length < 2) return [];
+        const gapSet = new Set<string>();
+        for (let i = 1; i < docs.length; i += 1) {
+          if (docs[i] - docs[i - 1] > 1) {
+            gapSet.add(String(docs[i - 1]));
+            gapSet.add(String(docs[i]));
+          }
+        }
+        return active.filter((e) => gapSet.has(e.doc));
+      }
+      case 'cur_diff':
+        return active.filter(
+          (e) => e.voucherType === 'cur_diff' || e.cur !== 'ريال يمني' || e.stmt.includes('فروق')
+        );
+      default:
+        return active;
+    }
+  }, [entries, activeMode]);
+
+  const windowTitle = launch?.title && activeMode !== 'all' ? `اليومية العامة - ${launch.title}` : 'اليومية العامة';
+
   return (
     <DraggableWindow
       open={open}
-      title="اليومية العامة"
+      title={windowTitle}
       width={1260}
       height={740}
       initialMaximized
@@ -395,10 +521,21 @@ export const JournalDialog: React.FC<JournalDialogProps> = ({
           {/* Side Panel */}
           <div className="hidden lg:flex w-[220px] shrink-0 bg-[#fbfcfd] border-l border-[#99a] p-3 flex-col items-center gap-3">
             <div className="text-[44px] leading-none">📅</div>
-            <div className="font-extrabold text-[15px]">اليومية العامة</div>
+            <div className="font-extrabold text-[15px] text-center">
+              {launch?.title && activeMode !== 'all' ? launch.title : 'اليومية العامة'}
+            </div>
+            {activeMode !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setActiveMode('all')}
+                className="erp-classic-btn px-3 py-1 text-[12px]"
+              >
+                عرض كافة القيود
+              </button>
+            )}
             <div className="w-full border-t border-[#ddd] pt-3 text-[12px] text-[#444] space-y-1.5">
               <div>
-                عدد القيود المسجلة: <b>{entries.length}</b>
+                القيود المعروضة: <b>{displayedEntries.length}</b>
               </div>
               <div>
                 المستخدم الحالي: <b>{currentUser}</b>
@@ -564,17 +701,17 @@ export const JournalDialog: React.FC<JournalDialogProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {entries.length === 0 ? (
+                  {displayedEntries.length === 0 ? (
                     <tr>
                       <td
                         colSpan={visibleColCount}
                         className="py-12 text-center text-[#334] font-semibold bg-[#cfdce8]"
                       >
-                        لا توجد قيود مسجلة بعد. أدخل قيداً يدوياً أو استخدم «مسح فاتورة / سند بالذكاء الاصطناعي».
+                        لا توجد قيود مطابقة حالياً. أدخل قيداً جديداً أو اضغط «عرض كافة القيود».
                       </td>
                     </tr>
                   ) : (
-                    entries.map((e, idx) => {
+                    displayedEntries.map((e, idx) => {
                       const isSel = e.id === selectedId;
                       return (
                         <tr
@@ -833,6 +970,7 @@ export const JournalDialog: React.FC<JournalDialogProps> = ({
       <AccTreeDialog
         open={chartOpen}
         zIndex={zIndex + 10}
+        customAccounts={customAccounts}
         onFocus={() => undefined}
         onClose={() => setChartOpen(false)}
         onAssignAccount={(role, accountName) => {
