@@ -93,136 +93,143 @@ export const PermissionsDialog: React.FC<PermissionsDialogProps> = ({
     <DraggableWindow
       open={open}
       title="صلاحيات المستخدمين"
-      width={1020}
+      width={980}
       height={680}
       zIndex={zIndex}
       onFocus={onFocus}
       onClose={onClose}
     >
-      <div className="flex-1 flex flex-col bg-[#f0f0f0] p-3 gap-3 overflow-hidden">
+      <div className="flex-1 flex flex-col bg-[#f0f0f0] px-4 py-3 gap-2.5 overflow-hidden">
         {/* Top User Fields */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-14 gap-y-2.5 bg-[#f7f8fb] border border-[#d6d9e0] p-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-2 py-1">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <label className="w-[115px] font-bold text-[13px]">اسم المستخدم</label>
+              <label className="w-[115px] font-bold text-[13px] text-right">اسم المستخدم</label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="erp-field flex-1"
+                className="erp-field flex-1 h-[26px]"
               />
             </div>
             <div className="flex items-center gap-2">
-              <label className="w-[115px] font-bold text-[13px]">كلمة السر</label>
+              <label className="w-[115px] font-bold text-[13px] text-right">كلمة السر</label>
               <input
                 type="password"
                 value={pass}
                 onChange={(e) => setPass(e.target.value)}
-                className="erp-field flex-1"
+                className="erp-field flex-1 h-[26px]"
               />
             </div>
             <div className="flex items-center gap-2">
-              <label className="w-[115px] font-bold text-[13px]">تأكيد كلمة السر</label>
+              <label className="w-[115px] font-bold text-[13px] text-right">تأكيد كلمة السر</label>
               <input
                 type="password"
                 value={pass2}
                 onChange={(e) => setPass2(e.target.value)}
-                className="erp-field flex-1"
+                className="erp-field flex-1 h-[26px]"
               />
             </div>
           </div>
 
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <label className="w-[115px] font-bold text-[13px]">الحساب</label>
+              <label className="w-[100px] font-bold text-[13px] text-right">الحساب</label>
               <input
                 value={acct}
                 onChange={(e) => setAcct(e.target.value)}
-                className="erp-field flex-1"
+                className="erp-field flex-1 h-[26px]"
               />
             </div>
             <div className="flex items-center gap-2">
-              <label className="w-[115px] font-bold text-[13px]">صندوق محدد</label>
+              <label className="w-[100px] font-bold text-[13px] text-right">صندوق محدد</label>
               <input
                 value={box}
                 onChange={(e) => setBox(e.target.value)}
-                className="erp-field flex-1"
+                className="erp-field flex-1 h-[26px]"
               />
             </div>
           </div>
         </div>
 
-        {/* Permission Category Tabs */}
-        <div className="flex flex-wrap items-end border-b border-[#8e8e8e] px-1">
-          {PERM_TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => {
-                setActiveTab(t.key);
-                setSelectedRow(-1);
-              }}
-              className={`px-3.5 py-1.5 text-[13px] font-bold border border-[#adadad] border-b-0 -ml-px cursor-pointer ${
-                activeTab === t.key
-                  ? 'bg-white text-black relative top-[1px] pb-[7px] z-10'
-                  : 'bg-[#e8eaf0] text-[#333] hover:bg-[#e5f1fb]'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Permissions List */}
-        <div className="flex-1 bg-white border border-[#8e8e8e] overflow-y-auto p-1 erp-scrollbar">
-          {currentList.map(([id, label], idx) => {
-            const isSel = selectedRow === idx;
-            const checked = currentSet.has(id);
-            return (
-              <div
-                key={id}
-                onClick={() => setSelectedRow(idx)}
-                className={`flex items-center gap-3 px-2.5 py-1 cursor-pointer text-[14px] font-semibold ${
-                  isSel ? 'bg-[#0078d7] text-white' : 'hover:bg-[#edf5fd] text-black'
+        {/* Permission Category Tabs + White Checklist Container */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex flex-wrap items-end px-0.5">
+            {PERM_TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => {
+                  setActiveTab(t.key);
+                  setSelectedRow(-1);
+                }}
+                className={`px-3 py-1 text-[13px] font-bold border border-[#b5b5b5] border-b-0 -ml-px cursor-pointer ${
+                  activeTab === t.key
+                    ? 'bg-white text-black relative top-[1px] pb-[6px] z-10'
+                    : 'bg-[#e9e9e9] text-[#222] hover:bg-[#e5f1fb]'
                 }`}
               >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex-1 flex flex-col bg-white border border-[#9e9e9e] p-2 overflow-hidden">
+            {/* Permissions List */}
+            <div className="flex-1 border border-[#a5a5a5] bg-white overflow-y-auto erp-scrollbar">
+              {currentList.map(([id, label], idx) => {
+                const isSel = selectedRow === idx;
+                const checked = currentSet.has(id);
+                return (
+                  <div
+                    key={id}
+                    onClick={() => setSelectedRow(idx)}
+                    className={`flex items-center gap-2 px-2 py-[2px] cursor-pointer text-[13px] font-bold ${
+                      isSel ? 'bg-[#0078d7] text-white' : 'hover:bg-[#edf5fd] text-black'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => togglePerm(id, e.target.checked)}
+                      className="w-[14px] h-[14px] accent-[#0078d7] shrink-0"
+                    />
+                    <span>
+                      {label}
+                      {toAr(id)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="pt-2 px-1">
+              <label className="inline-flex items-center gap-2 font-bold text-[13px] cursor-pointer select-none">
                 <input
                   type="checkbox"
-                  checked={checked}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => togglePerm(id, e.target.checked)}
-                  className="w-4 h-4 accent-[#0078d7] shrink-0"
+                  checked={allChecked}
+                  onChange={(e) => toggleAll(e.target.checked)}
+                  className="w-[14px] h-[14px] accent-[#0078d7]"
                 />
-                <span>
-                  {label} ({toAr(id)})
-                </span>
-              </div>
-            );
-          })}
+                <span>تحديد الكل</span>
+              </label>
+            </div>
+          </div>
         </div>
 
-        <label className="flex items-center gap-2 font-bold text-[14px] px-1 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={allChecked}
-            onChange={(e) => toggleAll(e.target.checked)}
-            className="w-4 h-4 accent-[#0078d7]"
-          />
-          <span>تحديد الكل</span>
-        </label>
-
         {/* Bottom Buttons */}
-        <div className="flex items-center justify-center gap-24 py-1 border-t border-[#d0d0d8]">
+        <div className="flex items-center justify-center gap-36 py-1">
           <button
             type="button"
             onClick={handleSave}
-            className="erp-classic-btn focused w-[140px] h-[34px] text-[14px]"
+            className="erp-classic-btn w-[140px] h-[34px] text-[14px] font-bold"
           >
             موافق
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="erp-classic-btn w-[140px] h-[34px] text-[14px]"
+            className="erp-classic-btn w-[140px] h-[34px] text-[14px] font-bold"
           >
             خروج
           </button>

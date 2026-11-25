@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { ErpUser, MsgConfig } from '../types/erp';
 import { DraggableWindow } from './DraggableWindow';
 
@@ -26,6 +26,16 @@ export const UsersDialog: React.FC<UsersDialogProps> = ({
   onShowMsg,
 }) => {
   const [selectedIdx, setSelectedIdx] = useState<number>(users.length ? 0 : -1);
+
+  useEffect(() => {
+    if (open) {
+      setSelectedIdx((prev) => {
+        if (!users.length) return -1;
+        if (prev >= 0 && prev < users.length) return prev;
+        return 0;
+      });
+    }
+  }, [open, users.length]);
 
   const handleEdit = () => {
     if (selectedIdx < 0 || !users[selectedIdx]) {
@@ -68,19 +78,19 @@ export const UsersDialog: React.FC<UsersDialogProps> = ({
     <DraggableWindow
       open={open}
       title="قائمة المستخدمين"
-      width={720}
-      height={520}
+      width={600}
+      height={480}
       zIndex={zIndex}
       onFocus={onFocus}
       onClose={onClose}
     >
-      <div className="flex-1 flex flex-col bg-[#f0f0f0] p-3 gap-3 overflow-hidden">
-        <div className="flex-1 bg-[#e5e5e5] border border-[#8e8e8e] overflow-y-auto erp-scrollbar">
+      <div className="flex-1 flex flex-col bg-[#f0f0f0] p-2 gap-2.5 overflow-hidden">
+        <div className="flex-1 bg-[#f0f0f0] border border-[#9a9a9a] overflow-auto erp-scrollbar">
           <table className="w-full border-collapse bg-white">
             <thead>
-              <tr className="bg-[#f8f9fc] border-b border-[#bbb]">
-                <th className="w-11 border-l border-[#ccc] py-2" />
-                <th className="py-2 px-4 text-center font-bold text-[14px]">الاسم</th>
+              <tr className="bg-white border-b border-[#c5c5c5]">
+                <th className="w-10 border-l border-[#d0d0d0] py-1.5 bg-white" />
+                <th className="py-1.5 px-4 text-center font-bold text-[13px] bg-white">الاسم</th>
               </tr>
             </thead>
             <tbody>
@@ -92,13 +102,17 @@ export const UsersDialog: React.FC<UsersDialogProps> = ({
                     onClick={() => setSelectedIdx(idx)}
                     onDoubleClick={() => onEditUser(idx)}
                     className={`cursor-pointer border-b border-[#dcdcdc] ${
-                      isSel ? 'bg-[#0078d7] text-white' : 'bg-[#ececec] hover:bg-[#e1effc]'
+                      isSel ? 'bg-[#0078d7] text-white' : 'bg-white hover:bg-[#e5f1fb]'
                     }`}
                   >
-                    <td className="w-11 border-l border-[#ccc] text-center text-[11px] py-1.5">
+                    <td
+                      className={`w-10 border-l border-[#d0d0d0] text-center text-[11px] py-1 ${
+                        isSel ? 'bg-[#f4f4f4] text-[#333]' : 'bg-[#f8f8f8] text-[#555]'
+                      }`}
+                    >
                       {isSel ? '◀' : ''}
                     </td>
-                    <td className="py-1.5 px-4 text-center font-semibold text-[14px]">{u.name}</td>
+                    <td className="py-1 px-4 text-center font-semibold text-[13px]">{u.name}</td>
                   </tr>
                 );
               })}
@@ -106,32 +120,32 @@ export const UsersDialog: React.FC<UsersDialogProps> = ({
           </table>
         </div>
 
-        <div className="flex items-center justify-center gap-4 py-1">
+        <div className="flex items-center justify-center gap-2 pb-1">
           <button
             type="button"
             onClick={onAddUser}
-            className="erp-classic-btn focused w-[135px] h-[34px] text-[14px]"
+            className="erp-classic-btn focused flex-1 h-[32px] text-[13px] font-bold"
           >
             اضافه
           </button>
           <button
             type="button"
             onClick={handleEdit}
-            className="erp-classic-btn w-[135px] h-[34px] text-[14px]"
+            className="erp-classic-btn flex-1 h-[32px] text-[13px] font-bold"
           >
             تعديل
           </button>
           <button
             type="button"
             onClick={handleDelete}
-            className="erp-classic-btn w-[135px] h-[34px] text-[14px]"
+            className="erp-classic-btn flex-1 h-[32px] text-[13px] font-bold"
           >
             حذف
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="erp-classic-btn w-[135px] h-[34px] text-[14px]"
+            className="erp-classic-btn flex-1 h-[32px] text-[13px] font-bold"
           >
             خروج
           </button>

@@ -1,9 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AccountOptionsDialog } from './components/AccountOptionsDialog';
+import {
+  AccTreeDialog,
+  DetailedAccountStatementDialog,
+} from './components/AccountsAndStatementDialogs';
+import {
+  CompanyPickerDialog,
+  ExcelImportDialog,
+  PasswordPromptDialog,
+  SystemRegistrationDialog,
+} from './components/AddedScreensDialogs';
 import { AiStudioDialog } from './components/AiStudioDialog';
 import { AlertsDialog } from './components/AlertsDialog';
+import { BackupRestoreDialog, ReportsListDialog } from './components/BackupAndReportsDialogs';
 import { CompaniesYearsDialog } from './components/CompaniesYearsDialog';
 import { DesktopWorkspace } from './components/DesktopWorkspace';
+import { InvoicesDialog, type InvoicesModalLaunch } from './components/InvoicesDialog';
 import { JournalDialog } from './components/JournalDialog';
 import { MenuAndToolbar } from './components/MenuAndToolbar';
 import { MessageBox } from './components/MessageBox';
@@ -11,10 +23,16 @@ import { PermissionsDialog } from './components/PermissionsDialog';
 import { PrintSetupDialog, SettingPagesDialog } from './components/PrintDialogs';
 import { PropsDialog } from './components/PropsDialog';
 import { StatusBar } from './components/StatusBar';
+import {
+  AppointmentsDialog,
+  ChangePasswordDialog,
+  SystemCheckDialog,
+} from './components/SystemAndAppointmentsDialogs';
 import { TitleBar } from './components/TitleBar';
 import {
   CurrenciesDialog,
   GeneralReportDialog,
+  PostDailyMovementDialog,
   SwitchUserDialog,
 } from './components/ToolsDialogs';
 import { UsersDialog } from './components/UsersDialog';
@@ -24,6 +42,7 @@ import type {
   ErpUser,
   ExtractedInvoiceData,
   MsgConfig,
+  ReportTemplateItem,
   SectionKey,
 } from './types/erp';
 
@@ -34,13 +53,54 @@ type WindowId =
   | 'accountOptions'
   | 'alerts'
   | 'companies'
+  | 'companiesPicker'
+  | 'passwordPrompt'
+  | 'systemRegistration'
+  | 'excelImport'
+  | 'invoices'
   | 'journal'
   | 'printSetup'
   | 'pagesSetup'
+  | 'reportsList'
+  | 'backupRestore'
+  | 'accTree'
+  | 'detailedStatement'
   | 'aiStudio'
   | 'currencies'
   | 'generalReport'
-  | 'switchUser';
+  | 'switchUser'
+  | 'systemCheck'
+  | 'appointments'
+  | 'changePassword'
+  | 'postDailyMovement';
+
+const INVOICE_ACTION_META: Record<string, InvoicesModalLaunch> = {
+  'inv:new_sales': { mode: 'editor', kindTitle: 'فاتورة مبيعات جديدة' },
+  'inv:browse_sales': { mode: 'browse', kindTitle: 'استعراض وتعديل فاتورة مبيعات' },
+  'inv:new_purchase': { mode: 'editor', kindTitle: 'فاتورة مشتريات جديدة' },
+  'inv:browse_purchase': { mode: 'browse', kindTitle: 'استعراض وتعديل فاتورة مشتريات' },
+  'inv:new_sales_return': { mode: 'editor', kindTitle: 'مردود مبيعات جديدة' },
+  'inv:browse_sales_return': { mode: 'browse', kindTitle: 'استعراض وتعديل فاتورة مردود مبيعات' },
+  'inv:new_purchase_return': { mode: 'editor', kindTitle: 'مردود مشتريات جديدة' },
+  'inv:browse_purchase_return': { mode: 'browse', kindTitle: 'استعراض وتعديل فاتورة مردود مشتريات' },
+  'inv:new_in_note': { mode: 'editor', kindTitle: 'مذكرة ادخال جديدة' },
+  'inv:browse_in_note': { mode: 'browse', kindTitle: 'استعراض وتعديل مذكرة ادخال' },
+  'inv:new_out_note': { mode: 'editor', kindTitle: 'مذكرة اخراج جديدة' },
+  'inv:browse_out_note': { mode: 'browse', kindTitle: 'استعراض وتعديل مذكرة اخراج' },
+  'inv:new_transfer': { mode: 'editor', kindTitle: 'مذكرة نقل جديدة' },
+  'inv:browse_transfer': { mode: 'browse', kindTitle: 'استعراض وتعديل مذكرة نقل' },
+  'inv:new_po': { mode: 'editor', kindTitle: 'طلب شراء جديدة' },
+  'inv:browse_po': { mode: 'browse', kindTitle: 'استعراض وتعديل طلب شراء' },
+  'inv:new_reserve': { mode: 'editor', kindTitle: 'حجز مبيعات جديدة' },
+  'inv:browse_reserve': { mode: 'browse', kindTitle: 'استعراض وتعديل حجز مبيعات' },
+  'inv:new_quote': { mode: 'editor', kindTitle: 'عرض أسعار' },
+  'inv:browse_quote': { mode: 'browse', kindTitle: 'استعراض وتعديل عرض أسعار' },
+  'inv:opening_inv': { mode: 'editor', kindTitle: 'مذكرة جرد إفتتاحي' },
+  'inv:adjust_inv': { mode: 'editor', kindTitle: 'مذكرة جرد - تسوية مخزنية' },
+  'inv:count_invoices': { mode: 'browse', kindTitle: 'جرد فواتير' },
+  'inv:profit_report': { mode: 'profit', kindTitle: 'تقرير ارباح الفواتير' },
+  'inv:today_profit': { mode: 'profit', kindTitle: 'ارباح فواتير اليوم' },
+};
 
 export default function App() {
   const [state, setState] = useState<ErpState>(() => loadErpState());
@@ -59,13 +119,26 @@ export default function App() {
     accountOptions: false,
     alerts: false,
     companies: false,
+    companiesPicker: false,
+    passwordPrompt: false,
+    systemRegistration: false,
+    excelImport: false,
+    invoices: false,
     journal: false,
     printSetup: false,
     pagesSetup: false,
+    reportsList: false,
+    backupRestore: false,
+    accTree: false,
+    detailedStatement: false,
     aiStudio: false,
     currencies: false,
     generalReport: false,
     switchUser: false,
+    systemCheck: false,
+    appointments: false,
+    changePassword: false,
+    postDailyMovement: false,
   });
 
   const [zOrder, setZOrder] = useState<Record<WindowId, number>>({
@@ -75,15 +148,28 @@ export default function App() {
     accountOptions: 60,
     alerts: 60,
     companies: 60,
+    companiesPicker: 64,
+    passwordPrompt: 70,
+    systemRegistration: 64,
+    excelImport: 64,
+    invoices: 62,
     journal: 55,
     printSetup: 64,
-    pagesSetup: 66,
+    pagesSetup: 68,
+    reportsList: 65,
+    backupRestore: 65,
+    accTree: 64,
+    detailedStatement: 64,
     aiStudio: 65,
     currencies: 60,
     generalReport: 60,
     switchUser: 62,
+    systemCheck: 66,
+    appointments: 66,
+    changePassword: 68,
+    postDailyMovement: 66,
   });
-  const topZRef = useRef(70);
+  const topZRef = useRef(72);
 
   const [propsInitialTab, setPropsInitialTab] = useState(0);
   const [editingUserIdx, setEditingUserIdx] = useState<number>(-1);
@@ -91,6 +177,17 @@ export default function App() {
   const [aiInitialMode, setAiInitialMode] = useState<'general' | 'invoice' | 'logo'>('general');
   const [aiInitialImage, setAiInitialImage] = useState<string | null>(null);
   const [journalPrefill, setJournalPrefill] = useState<ExtractedInvoiceData | null>(null);
+  const [backupMode, setBackupMode] = useState<'backup' | 'restore'>('backup');
+  const [editingReportTpl, setEditingReportTpl] = useState<ReportTemplateItem | null>(null);
+  const [creatingReportTpl, setCreatingReportTpl] = useState(false);
+  const [reportPickerCallback, setReportPickerCallback] = useState<
+    ((tpl: ReportTemplateItem) => void) | null
+  >(null);
+  const [invoiceLaunch, setInvoiceLaunch] = useState<InvoicesModalLaunch>({
+    mode: 'editor',
+    kindTitle: 'فاتورة مبيعات جديدة',
+  });
+  const pendingProtectedActionRef = useRef<(() => void) | null>(null);
 
   // MessageBox queue
   const [msgConfig, setMsgConfig] = useState<MsgConfig | null>(null);
@@ -138,7 +235,7 @@ export default function App() {
     setOpenWindows((prev) => ({ ...prev, [id]: false }));
   }, []);
 
-  const runBackupDownload = () => {
+  const runBackupDownload = (customPath?: string) => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -146,12 +243,17 @@ export default function App() {
     a.download = `badel-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    notify(`تم حفظ نسخة احتياطية (${state.props.backupPath})`);
+    notify(`تم حفظ نسخة احتياطية (${customPath || state.props.backupPath})`);
   };
 
   const handleAction = useCallback(
     (actionKey: string) => {
       setActiveButtonKey(actionKey);
+      if (actionKey.startsWith('inv:') && INVOICE_ACTION_META[actionKey]) {
+        setInvoiceLaunch(INVOICE_ACTION_META[actionKey]);
+        openWindow('invoices');
+        return;
+      }
       switch (actionKey) {
         case 'props':
           setPropsInitialTab(0);
@@ -175,8 +277,39 @@ export default function App() {
           openWindow('alerts');
           break;
         case 'companies':
-        case 'addCompany':
           openWindow('companies');
+          break;
+        case 'addCompany':
+          void showMsg({
+            title: 'تحذير',
+            icon: 'warn',
+            text: 'سيتم إغلاق الشركة الحالية هل تريد المتابعة ؟',
+            buttons: [
+              { label: 'OK', value: 'yes', focus: true },
+              { label: 'Cancel', value: 'no' },
+            ],
+          }).then((res) => {
+            if (res === 'yes') openWindow('companies');
+          });
+          break;
+        case 'companiesPicker':
+          void showMsg({
+            title: 'تحذير',
+            icon: 'warn',
+            text: 'سيتم إغلاق الشركة الحالية هل تريد المتابعة ؟',
+            buttons: [
+              { label: 'OK', value: 'yes', focus: true },
+              { label: 'Cancel', value: 'no' },
+            ],
+          }).then((res) => {
+            if (res === 'yes') openWindow('companiesPicker');
+          });
+          break;
+        case 'systemRegistration':
+          openWindow('systemRegistration');
+          break;
+        case 'excelImport':
+          openWindow('excelImport');
           break;
         case 'journal':
           openWindow('journal');
@@ -185,7 +318,8 @@ export default function App() {
           openWindow('printSetup');
           break;
         case 'pagesSetup':
-          openWindow('pagesSetup');
+          setReportPickerCallback(null);
+          openWindow('reportsList');
           break;
         case 'currencies':
           openWindow('currencies');
@@ -193,8 +327,24 @@ export default function App() {
         case 'generalReport':
           openWindow('generalReport');
           break;
+        case 'accTree':
+          openWindow('accTree');
+          break;
+        case 'detailedStatement':
+          openWindow('detailedStatement');
+          break;
         case 'switchUser':
-          openWindow('switchUser');
+          void showMsg({
+            title: 'تحذير',
+            icon: 'warn',
+            text: 'سيتم الخروج من المستخدم الحالي هل تريد المتابعة ؟',
+            buttons: [
+              { label: 'OK', value: 'yes', focus: true },
+              { label: 'Cancel', value: 'no' },
+            ],
+          }).then((res) => {
+            if (res === 'yes') openWindow('switchUser');
+          });
           break;
         case 'aiStudioGenerate':
           setAiInitialTab('generate');
@@ -209,34 +359,13 @@ export default function App() {
           openWindow('aiStudio');
           break;
         case 'backupNow':
-          runBackupDownload();
+          setBackupMode('backup');
+          openWindow('backupRestore');
           break;
-        case 'restoreBackup': {
-          const inp = document.createElement('input');
-          inp.type = 'file';
-          inp.accept = '.json';
-          inp.onchange = async () => {
-            const file = inp.files?.[0];
-            if (!file) return;
-            try {
-              const text = await file.text();
-              const parsed = JSON.parse(text) as ErpState;
-              if (!parsed.props || !Array.isArray(parsed.users)) {
-                throw new Error('ملف نسخة احتياطية غير صالح');
-              }
-              setState(parsed);
-              notify('تم استرجاع النسخة الاحتياطية بنجاح');
-            } catch {
-              await showMsg({
-                title: 'استرجاع نسخة احتياطية',
-                icon: 'warn',
-                text: 'تعذر قراءة ملف النسخة الاحتياطية المحدد.',
-              });
-            }
-          };
-          inp.click();
+        case 'restoreBackup':
+          setBackupMode('restore');
+          openWindow('backupRestore');
           break;
-        }
         case 'exportJournalCsv':
           openWindow('journal');
           notify('افتح اليومية العامة واضغط «تصدير الى اكسل»');
@@ -249,37 +378,37 @@ export default function App() {
           });
           break;
         case 'systemCheck':
-          void fetch('/api/health')
-            .then((r) => r.json())
-            .then((info) => {
-              void showMsg({
-                title: 'فحص النظام',
-                icon: 'info',
-                text: `حالة الخادم: يعمل بشكل سليم\nالشركة النشطة: ${state.props.company}\nعدد المستخدمين: ${state.users.length}\nعدد قيود اليومية: ${state.journal.length}\nجاهزية مفتاح الذكاء الاصطناعي: ${
-                  info?.geminiConfigured ? 'متوفر' : 'غير مضبوط في Settings > Secrets'
-                }`,
-              });
-            })
-            .catch(() => {
-              void showMsg({
-                title: 'فحص النظام',
-                icon: 'warn',
-                text: 'تعذر الوصول إلى خادم النظام المحلي.',
-              });
-            });
+          openWindow('systemCheck');
+          break;
+        case 'appointments':
+          openWindow('appointments');
+          break;
+        case 'changePassword':
+          openWindow('changePassword');
+          break;
+        case 'reviewMovements':
+          openWindow('generalReport');
+          notify('مراجعة الحركات');
+          break;
+        case 'postDailyMovement':
+          openWindow('postDailyMovement');
           break;
         case 'shutdown':
-          void showMsg({
-            title: 'إنهاء النظام',
-            icon: 'question',
-            text: 'هل تريد إغلاق النظام؟',
-            buttons: [
-              { label: 'نعم', value: 'yes' },
-              { label: 'لا', value: 'no', focus: true },
-            ],
-          }).then((res) => {
-            if (res === 'yes') setIsShutdown(true);
-          });
+          if (state.alerts[7] === false) {
+            setIsShutdown(true);
+          } else {
+            void showMsg({
+              title: 'تنبية',
+              icon: 'question',
+              text: 'هل تريد الخروج من البرنامج',
+              buttons: [
+                { label: 'OK', value: 'yes', focus: true },
+                { label: 'Cancel', value: 'no' },
+              ],
+            }).then((res) => {
+              if (res === 'yes') setIsShutdown(true);
+            });
+          }
           break;
         default:
           break;
@@ -288,9 +417,46 @@ export default function App() {
     [openWindow, showMsg, notify, state]
   );
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'F2' && !e.shiftKey) {
+        e.preventDefault();
+        handleAction('inv:new_sales');
+      } else if (e.shiftKey && e.key === 'F2' && !e.ctrlKey) {
+        e.preventDefault();
+        handleAction('inv:browse_sales');
+      } else if (e.ctrlKey && e.key === 'F1' && !e.shiftKey) {
+        e.preventDefault();
+        handleAction('inv:new_purchase');
+      } else if (e.shiftKey && e.key === 'F1' && !e.ctrlKey) {
+        e.preventDefault();
+        handleAction('inv:browse_purchase');
+      } else if (e.ctrlKey && e.shiftKey && e.key === 'F12') {
+        e.preventDefault();
+        handleAction('inv:new_transfer');
+      } else if (e.shiftKey && e.key === 'F12' && !e.ctrlKey) {
+        e.preventDefault();
+        handleAction('inv:browse_transfer');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleAction]);
+
   const handleDropdownAction = (section: SectionKey, item: string) => {
     setActiveSection(section);
     const map: Record<string, string> = {
+      'اليومية العامة': 'journal',
+      'إضافة شركة جديدة': 'addCompany',
+      'تغير المستخدم': 'switchUser',
+      'تغير كلمة السر': 'changePassword',
+      'عمل نسخة احتياطية': 'backupNow',
+      'استرجاع نسخة احتياطية': 'restoreBackup',
+      'تعريف ترويسة / تذييل': 'pagesSetup',
+      اتصال: 'contact',
+      'قائمة الشركات': 'companiesPicker',
+      'استيراد من اكسل': 'excelImport',
+      'انهاء البرنامج': 'shutdown',
       'الاعدادات العامة': 'props',
       'صلاحيات المستخدمين': 'users',
       'خيارات الحسابات العامة': 'accountOptions',
@@ -298,8 +464,12 @@ export default function App() {
       'بيانات الشركات والسنوات': 'companies',
       'الاستوديو الذكي للصور والمستندات': 'aiStudioGenerate',
       'التقرير العام': 'generalReport',
+      'مراجعة الحركات': 'reviewMovements',
+      'ترحيل الحركة اليومية': 'postDailyMovement',
       'قائمة العملات': 'currencies',
+      'تسجيل النظام': 'systemRegistration',
       'فحص النظام': 'systemCheck',
+      'مستعرض مواعيد اليوم': 'appointments',
       'إعداد نماذج الطباعة': 'printSetup',
     };
     const key = map[item];
@@ -349,7 +519,14 @@ export default function App() {
           <div className="text-[24px] font-bold">تم تصغير نافذة النظام</div>
           <button
             type="button"
-            onClick={() => setMinimizedShell(false)}
+            onClick={() => {
+              if (state.alerts[8]) {
+                pendingProtectedActionRef.current = () => setMinimizedShell(false);
+                openWindow('passwordPrompt');
+              } else {
+                setMinimizedShell(false);
+              }
+            }}
             className="erp-classic-btn focused px-6 h-[36px] text-[14px]"
           >
             استعادة النظام ({state.props.company})
@@ -470,10 +647,11 @@ export default function App() {
         open={openWindows.alerts}
         zIndex={zOrder.alerts}
         value={state.alerts}
+        days={state.alertDays}
         onFocus={() => focusWindow('alerts')}
         onClose={() => closeWindow('alerts')}
-        onSave={(next) => {
-          setState((prev) => ({ ...prev, alerts: next }));
+        onSave={(next, nextDays) => {
+          setState((prev) => ({ ...prev, alerts: next, alertDays: nextDays }));
           notify('تم حفظ تنبيهات النظام');
         }}
       />
@@ -496,6 +674,8 @@ export default function App() {
         zIndex={zOrder.journal}
         currentUser={state.currentUser}
         entries={state.journal}
+        journalOptions={state.journalOptions}
+        accountOptions={state.accountOptions}
         prefillData={journalPrefill}
         onConsumePrefill={() => setJournalPrefill(null)}
         onFocus={() => focusWindow('journal')}
@@ -503,11 +683,20 @@ export default function App() {
         onAddEntry={(entry) =>
           setState((prev) => ({ ...prev, journal: [entry, ...prev.journal] }))
         }
+        onUpdateEntry={(updated) =>
+          setState((prev) => ({
+            ...prev,
+            journal: prev.journal.map((e) => (e.id === updated.id ? updated : e)),
+          }))
+        }
         onDeleteEntry={(id) =>
           setState((prev) => ({
             ...prev,
             journal: prev.journal.filter((e) => e.id !== id),
           }))
+        }
+        onSaveJournalOptions={(journalOptions) =>
+          setState((prev) => ({ ...prev, journalOptions }))
         }
         onOpenPrint={() => openWindow('printSetup')}
         onOpenAiInvoiceScan={() => {
@@ -516,7 +705,6 @@ export default function App() {
           setAiInitialImage(null);
           openWindow('aiStudio');
         }}
-        onOpenGeneralReport={() => openWindow('generalReport')}
         onShowMsg={showMsg}
         onNotify={notify}
       />
@@ -524,9 +712,44 @@ export default function App() {
       <PrintSetupDialog
         open={openWindows.printSetup}
         zIndex={zOrder.printSetup}
+        templates={state.reportTemplates}
         onFocus={() => focusWindow('printSetup')}
         onClose={() => closeWindow('printSetup')}
-        onOpenPages={() => openWindow('pagesSetup')}
+        onOpenPages={(opts) => {
+          setCreatingReportTpl(Boolean(opts?.isCreating));
+          setEditingReportTpl(opts?.template || null);
+          openWindow('pagesSetup');
+        }}
+        onNotify={notify}
+      />
+
+      <ReportsListDialog
+        open={openWindows.reportsList}
+        zIndex={zOrder.reportsList}
+        templates={state.reportTemplates}
+        onFocus={() => focusWindow('reportsList')}
+        onClose={() => {
+          setReportPickerCallback(null);
+          closeWindow('reportsList');
+        }}
+        onAddTemplate={() => {
+          setEditingReportTpl(null);
+          setCreatingReportTpl(true);
+          openWindow('pagesSetup');
+        }}
+        onEditTemplate={(tpl) => {
+          setEditingReportTpl(tpl);
+          setCreatingReportTpl(false);
+          openWindow('pagesSetup');
+        }}
+        onDeleteTemplate={(id) =>
+          setState((prev) => ({
+            ...prev,
+            reportTemplates: prev.reportTemplates.filter((t) => t.id !== id),
+          }))
+        }
+        onPickTemplate={reportPickerCallback || undefined}
+        onShowMsg={showMsg}
         onNotify={notify}
       />
 
@@ -534,9 +757,61 @@ export default function App() {
         open={openWindows.pagesSetup}
         zIndex={zOrder.pagesSetup}
         propsState={state.props}
+        editingTemplate={editingReportTpl}
+        isCreating={creatingReportTpl}
         onFocus={() => focusWindow('pagesSetup')}
         onClose={() => closeWindow('pagesSetup')}
+        onOpenFetchList={(cb) => {
+          setReportPickerCallback(() => cb);
+          openWindow('reportsList');
+        }}
+        onSaveTemplate={(tpl) =>
+          setState((prev) => {
+            const exists = prev.reportTemplates.some((t) => t.id === tpl.id);
+            return {
+              ...prev,
+              reportTemplates: exists
+                ? prev.reportTemplates.map((t) => (t.id === tpl.id ? tpl : t))
+                : [...prev.reportTemplates, tpl],
+            };
+          })
+        }
         onNotify={notify}
+      />
+
+      <BackupRestoreDialog
+        open={openWindows.backupRestore}
+        mode={backupMode}
+        zIndex={zOrder.backupRestore}
+        propsState={state.props}
+        onFocus={() => focusWindow('backupRestore')}
+        onClose={() => closeWindow('backupRestore')}
+        onExecuteBackup={({ serverName, dbName, backupPath, integratedSecurity }) => {
+          setState((prev) => ({
+            ...prev,
+            props: {
+              ...prev.props,
+              serverName,
+              dbName,
+              backupPath,
+              integratedSecurity,
+            },
+          }));
+          runBackupDownload(backupPath);
+        }}
+        onExecuteRestore={(restored) => {
+          setState((prev) => ({
+            ...prev,
+            ...restored,
+            props: { ...prev.props, ...(restored.props || {}) },
+            journalOptions: restored.journalOptions || prev.journalOptions,
+            reportTemplates: restored.reportTemplates?.length
+              ? restored.reportTemplates
+              : prev.reportTemplates,
+          }));
+          notify('تم استرجاع النسخة الاحتياطية بنجاح');
+        }}
+        onShowMsg={showMsg}
       />
 
       <AiStudioDialog
@@ -577,6 +852,28 @@ export default function App() {
           setState((prev) => ({ ...prev, currencies }));
           notify('تم تحديث قائمة العملات');
         }}
+        onShowMsg={showMsg}
+        onNotify={notify}
+      />
+
+      <PostDailyMovementDialog
+        open={openWindows.postDailyMovement}
+        zIndex={zOrder.postDailyMovement}
+        state={state}
+        onFocus={() => focusWindow('postDailyMovement')}
+        onClose={() => closeWindow('postDailyMovement')}
+        onSavePosted={({ journalUpdates, invoiceUpdates }) => {
+          setState((prev) => ({
+            ...prev,
+            journal: prev.journal.map((j) =>
+              journalUpdates[j.id] ? { ...j, ...journalUpdates[j.id] } : j
+            ),
+            invoices: prev.invoices.map((inv) =>
+              invoiceUpdates[inv.id] ? { ...inv, ...invoiceUpdates[inv.id] } : inv
+            ),
+          }));
+        }}
+        onNotify={notify}
       />
 
       <GeneralReportDialog
@@ -585,6 +882,26 @@ export default function App() {
         state={state}
         onFocus={() => focusWindow('generalReport')}
         onClose={() => closeWindow('generalReport')}
+      />
+
+      <AccTreeDialog
+        open={openWindows.accTree}
+        zIndex={zOrder.accTree}
+        onFocus={() => focusWindow('accTree')}
+        onClose={() => closeWindow('accTree')}
+        onNotify={notify}
+      />
+
+      <DetailedAccountStatementDialog
+        open={openWindows.detailedStatement}
+        zIndex={zOrder.detailedStatement}
+        initialAccountName="الصندوق"
+        entries={state.journal}
+        onFocus={() => focusWindow('detailedStatement')}
+        onClose={() => closeWindow('detailedStatement')}
+        onOpenPrint={() => openWindow('printSetup')}
+        onShowMsg={showMsg}
+        onNotify={notify}
       />
 
       <SwitchUserDialog
@@ -598,6 +915,169 @@ export default function App() {
           setState((prev) => ({ ...prev, currentUser: username }));
           notify(`تم تسجيل الدخول بالمستخدم: ${username}`);
         }}
+      />
+
+      <CompanyPickerDialog
+        open={openWindows.companiesPicker}
+        zIndex={zOrder.companiesPicker}
+        companies={state.companies}
+        activeCompany={state.props.company}
+        activeBranch={state.activeBranch}
+        activeYear={state.props.year}
+        onFocus={() => focusWindow('companiesPicker')}
+        onClose={() => closeWindow('companiesPicker')}
+        onSelectCompany={(companyName, branch, year) => {
+          pendingProtectedActionRef.current = () => {
+            setState((prev) => ({
+              ...prev,
+              activeBranch: branch,
+              props: { ...prev.props, company: companyName, year },
+            }));
+            notify(`تم فتح الشركة: ${companyName} - الفرع ${branch} (${year})`);
+          };
+          openWindow('passwordPrompt');
+        }}
+        onNotify={notify}
+      />
+
+      <PasswordPromptDialog
+        open={openWindows.passwordPrompt}
+        zIndex={zOrder.passwordPrompt}
+        expectedPassword={state.props.password}
+        onFocus={() => focusWindow('passwordPrompt')}
+        onClose={() => closeWindow('passwordPrompt')}
+        onSuccess={() => {
+          pendingProtectedActionRef.current?.();
+          pendingProtectedActionRef.current = null;
+        }}
+        onShowMsg={showMsg}
+      />
+
+      <SystemRegistrationDialog
+        open={openWindows.systemRegistration}
+        zIndex={zOrder.systemRegistration}
+        license={state.license}
+        onFocus={() => focusWindow('systemRegistration')}
+        onClose={() => closeWindow('systemRegistration')}
+        onSave={(license) => {
+          setState((prev) => ({ ...prev, license }));
+          notify('تم حفظ كود الترخيص بنجاح');
+        }}
+      />
+
+      <ExcelImportDialog
+        open={openWindows.excelImport}
+        zIndex={zOrder.excelImport}
+        importedMaterials={state.importedMaterials}
+        onFocus={() => focusWindow('excelImport')}
+        onClose={() => closeWindow('excelImport')}
+        onSaveMaterials={(importedMaterials) =>
+          setState((prev) => ({ ...prev, importedMaterials }))
+        }
+        onNotify={notify}
+      />
+
+      <InvoicesDialog
+        open={openWindows.invoices}
+        launch={invoiceLaunch}
+        zIndex={zOrder.invoices}
+        currentUser={state.currentUser}
+        invoices={state.invoices}
+        onFocus={() => focusWindow('invoices')}
+        onClose={() => closeWindow('invoices')}
+        onSaveInvoice={(inv) =>
+          setState((prev) => {
+            const exists = prev.invoices.some((x) => x.id === inv.id);
+            return {
+              ...prev,
+              invoices: exists
+                ? prev.invoices.map((x) => (x.id === inv.id ? inv : x))
+                : [inv, ...prev.invoices],
+            };
+          })
+        }
+        onDeleteInvoice={(id) =>
+          setState((prev) => ({
+            ...prev,
+            invoices: prev.invoices.filter((x) => x.id !== id),
+          }))
+        }
+        onOpenAiInvoiceScan={() => {
+          setAiInitialTab('analyze');
+          setAiInitialMode('invoice');
+          setAiInitialImage(null);
+          openWindow('aiStudio');
+        }}
+        onOpenPrint={() => openWindow('printSetup')}
+        onShowMsg={showMsg}
+        onNotify={notify}
+      />
+
+      <SystemCheckDialog
+        open={openWindows.systemCheck}
+        zIndex={zOrder.systemCheck}
+        state={state}
+        onFocus={() => focusWindow('systemCheck')}
+        onClose={() => closeWindow('systemCheck')}
+        onCleanZeroExpired={() => {
+          const today = new Date().toISOString().slice(0, 10);
+          let removedCount = 0;
+          setState((prev) => {
+            const kept = prev.importedMaterials.filter((m) => {
+              const isZero = Number(m.qty || '0') <= 0;
+              const isExpired = Boolean(m.expiryDate && m.expiryDate < today);
+              if (isZero && isExpired) {
+                removedCount += 1;
+                return false;
+              }
+              return true;
+            });
+            return { ...prev, importedMaterials: kept };
+          });
+          return removedCount;
+        }}
+        onShowMsg={showMsg}
+      />
+
+      <AppointmentsDialog
+        open={openWindows.appointments}
+        zIndex={zOrder.appointments}
+        appointments={state.appointments}
+        onFocus={() => focusWindow('appointments')}
+        onClose={() => closeWindow('appointments')}
+        onSaveAppointment={(item, isEdit) =>
+          setState((prev) => ({
+            ...prev,
+            appointments: isEdit
+              ? prev.appointments.map((a) => (a.id === item.id ? item : a))
+              : [item, ...prev.appointments],
+          }))
+        }
+        onDeleteAppointment={(id) =>
+          setState((prev) => ({
+            ...prev,
+            appointments: prev.appointments.filter((a) => a.id !== id),
+          }))
+        }
+        onShowMsg={showMsg}
+        onNotify={notify}
+      />
+
+      <ChangePasswordDialog
+        open={openWindows.changePassword}
+        zIndex={zOrder.changePassword}
+        currentUser={state.currentUser}
+        currentPassword={state.props.password}
+        onFocus={() => focusWindow('changePassword')}
+        onClose={() => closeWindow('changePassword')}
+        onSavePassword={(nextPassword) => {
+          setState((prev) => ({
+            ...prev,
+            props: { ...prev.props, password: nextPassword },
+          }));
+          notify('تم تحديث كلمة السر بنجاح');
+        }}
+        onShowMsg={showMsg}
       />
 
       <MessageBox config={msgConfig} onResolve={handleMsgResolve} />

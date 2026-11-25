@@ -97,20 +97,24 @@ export const MenuAndToolbar: React.FC<MenuAndToolbarProps> = ({
           style={{ top: openMenu.top, right: openMenu.right }}
           className="fixed z-[250] min-w-[270px] bg-white border border-[#889] shadow-lg p-1"
         >
-          {openMenu.items.map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => {
-                const sec = openMenu.section;
-                setOpenMenu(null);
-                onDropdownAction(sec, item);
-              }}
-              className="w-full text-right px-4 py-1.5 text-[14px] font-semibold text-black border border-transparent hover:bg-[#cde1f7] hover:border-[#79a8d9] cursor-pointer block"
-            >
-              {item}
-            </button>
-          ))}
+          {openMenu.items.map((item, idx) =>
+            item === '---' ? (
+              <div key={`sep-${idx}`} className="my-1 border-t border-[#d8d8d8]" />
+            ) : (
+              <button
+                key={item}
+                type="button"
+                onClick={() => {
+                  const sec = openMenu.section;
+                  setOpenMenu(null);
+                  onDropdownAction(sec, item);
+                }}
+                className="w-full text-right px-4 py-1.5 text-[14px] font-semibold text-black border border-transparent hover:bg-[#cde1f7] hover:border-[#79a8d9] cursor-pointer block"
+              >
+                {item}
+              </button>
+            )
+          )}
         </div>
       )}
 

@@ -2,7 +2,9 @@ import type {
   AccountOptionsState,
   ErpState,
   GeneralPropsState,
+  JournalOptionsState,
   PermCategoryKey,
+  ReportTemplateItem,
   SectionKey,
 } from '../types/erp';
 
@@ -22,7 +24,27 @@ export const MENU_SECTIONS: {
   items?: string[];
   panel?: SectionKey;
 }[] = [
-  { title: 'الملف', toolbarLabel: 'الملف', panel: 'الملف' },
+  {
+    title: 'الملف',
+    toolbarLabel: 'الملف',
+    panel: 'الملف',
+    items: [
+      'اليومية العامة',
+      'إضافة شركة جديدة',
+      'تغير المستخدم',
+      'تغير كلمة السر',
+      '---',
+      'عمل نسخة احتياطية',
+      'استرجاع نسخة احتياطية',
+      '---',
+      'تعريف ترويسة / تذييل',
+      '---',
+      'اتصال',
+      'قائمة الشركات',
+      'استيراد من اكسل',
+      'انهاء البرنامج',
+    ],
+  },
   { title: 'الفواتير', toolbarLabel: 'الفواتير', panel: 'الفواتير' },
   { title: 'الحسابات', toolbarLabel: 'الحسابات', panel: 'الحسابات' },
   { title: 'القيود', toolbarLabel: 'القيود', panel: 'القيود' },
@@ -48,11 +70,16 @@ export const MENU_SECTIONS: {
     toolbarLabel: 'الأدوات',
     panel: 'ادوات',
     items: [
-      'الاستوديو الذكي للصور والمستندات',
       'التقرير العام',
+      'مراجعة الحركات',
+      'ترحيل الحركة اليومية',
       'قائمة العملات',
+      'تسجيل النظام',
       'فحص النظام',
+      'مستعرض مواعيد اليوم',
+      '---',
       'إعداد نماذج الطباعة',
+      'الاستوديو الذكي للصور والمستندات',
     ],
   },
 ];
@@ -68,8 +95,23 @@ export const PERM_TABS: { key: PermCategoryKey; label: string }[] = [
 
 export const PERMS_DATA: Record<PermCategoryKey, [number, string][]> = {
   emp: [
+    [0, 'اضافة موظف جديد'],
+    [1, 'استعراض الموظفين'],
+    [2, 'تعديل موظف'],
+    [3, 'حذف موظف'],
+    [4, 'اضافة قسم جديد'],
+    [5, 'استعراض الاقسام'],
+    [6, 'تعديل قسم'],
+    [7, 'حذف قسم'],
+    [8, 'فترات الدوام'],
+    [9, 'تحديث بحسب الفترات الجديدة'],
+    [10, 'تسجيل حضور وانصراف موظف يدوياً'],
+    [11, 'اتصال'],
+    [12, 'قراءة بيانات البصمة'],
+    [13, 'مسح بيانات البصمة'],
+    [14, 'اعدادت ادارة الحضور'],
     [15, 'اضافة جهاز جديد'],
-    [16, 'تعديل جهاز'],
+    [16, 'تعديل جهاز البصمة'],
     [17, 'حذف جهاز البصمة'],
     [18, 'جدول اجور جديد'],
     [19, 'استعراض جدول الأجور'],
@@ -168,7 +210,7 @@ export const ACCOUNT_OPTION_GROUPS_RIGHT: AccountOptionFieldDef[][] = [
     { key: 'sales', label: 'المبيعات الافتراضي', defaultCode: '411', defaultName: 'المبيعات' },
     { key: 'sret', label: 'مردود المبيعات', defaultCode: '312', defaultName: 'مردودات المبيعات' },
     { key: 'cust', label: 'حساب الزبائن', defaultCode: '122', defaultName: 'الزبائن' },
-    { key: 'sup', label: 'حساب الموردين', defaultCode: '221', defaultName: 'الموردون' },
+    { key: 'sup', label: 'حساب الموردين', defaultCode: '221', defaultName: 'الموردين' },
   ],
   [
     { key: 'cash', label: 'حساب النقدية الافتراضي', defaultCode: '12301', defaultName: 'الصندوق' },
@@ -188,7 +230,7 @@ export const ACCOUNT_OPTION_GROUPS_RIGHT: AccountOptionFieldDef[][] = [
 export const ACCOUNT_OPTION_GROUP_LEFT: AccountOptionFieldDef[] = [
   { key: 'ins', label: 'تبعية حساب شركات التأمين', defaultCode: '', defaultName: '' },
   { key: 'pat', label: 'تبعية حساب المرضى', defaultCode: '', defaultName: '' },
-  { key: 'mem', label: 'تبعية حساب الذاكرة', defaultCode: '', defaultName: '' },
+  { key: 'mem', label: 'تبعية حساب الدكاترة', defaultCode: '', defaultName: '' },
   { key: 'emp2', label: 'تبعية حساب الموظفين', defaultCode: '', defaultName: '' },
   { key: 'sal', label: 'تبعية رواتب الموظفين', defaultCode: '', defaultName: '' },
   { key: 'adv', label: 'حساب سلف الموظفين', defaultCode: '', defaultName: '' },
@@ -200,12 +242,16 @@ export const ACCOUNT_OPTION_GROUP_LEFT: AccountOptionFieldDef[] = [
 ];
 
 export const SYSTEM_ALERTS_LIST = [
-  'التنبيه عند انخفاض رصيد مادة عن الحد الأدنى',
-  'التنبيه عند انتهاء صلاحية المواد',
-  'التنبيه عند وجود شيكات مستحقة',
-  'التنبيه عند عمل نسخة احتياطية',
-  'التنبيه عند دخول مستخدم جديد',
-  'تنبيه إغلاق الفترة المالية',
+  'تنبه انتهاء تاريخ الصلاحية للمادة قبل',
+  'تنبية بالشيكات المستحقة قبل',
+  'تنبية عند البيع باقل من التكلفة',
+  'التنبية عند حفظ الفاتورة',
+  'التنبية عند حذف فاتورة',
+  'التنبية عند حفظ القيد في اليومية العامة',
+  'التنبية عند حذف القيد في اليومية العامة',
+  'التنبية عند الخروج من البرنامج',
+  'طلب كلمة المرور عند العودة من التصغير',
+  'التنبيه بمواعيد الاستحقاق من العملاء',
 ];
 
 export const PRINTERS_LIST = [
@@ -332,8 +378,44 @@ export function createDefaultAccountOptions(): AccountOptionsState {
   };
 }
 
+export const DEFAULT_JOURNAL_OPTIONS: JournalOptionsState = {
+  sticky: {
+    dhm: false,
+    rec: false,
+    pay: true,
+    to: false,
+    from: false,
+    stmt: true,
+  },
+  columns: {
+    showUser: true,
+    showCreatedAt: true,
+    showUpdatedBy: false,
+    showUpdatedAt: false,
+    showDoc: false,
+    showEditCount: false,
+  },
+};
+
+export const DEFAULT_REPORT_TEMPLATES: ReportTemplateItem[] = [
+  { id: 'rt-1', name: 'نموذج ترويسة وتذيل مشترك', reportType: 'ترويسة وتذيل مشترك' },
+  { id: 'rt-2', name: 'نموذج ١', reportType: 'فاتورة' },
+  { id: 'rt-3', name: 'نموذج حساب إجمالي', reportType: 'كشف حساب إجمالي' },
+  { id: 'rt-4', name: 'نموذج الحسابات الختامية', reportType: 'حسابات ختامية' },
+  { id: 'rt-5', name: 'نموذج قبض١', reportType: 'سند قبض' },
+  { id: 'rt-6', name: 'كشف حساب تفصيلي', reportType: 'كشف حساب تفصيلي' },
+  { id: 'rt-7', name: 'نموذج التقرير العام', reportType: 'تقرير عام' },
+  { id: 'rt-8', name: 'نموذج كشف بالمواد الرئيسية', reportType: 'كشف مواد إجمالي' },
+  { id: 'rt-9', name: 'نموذج صرف', reportType: 'سند صرف' },
+  { id: 'rt-10', name: 'نموذج مواد تفصيلي', reportType: 'كشف مواد تفصيلي' },
+  { id: 'rt-11', name: 'نموذج١', reportType: 'أمر تحميل' },
+  { id: 'rt-12', name: 'نموذج قيد', reportType: 'قيد' },
+  { id: 'rt-13', name: 'حسابات ختامية', reportType: 'حسابات ختامية' },
+];
+
 export const INITIAL_STATE: ErpState = {
   currentUser: 'admin',
+  activeBranch: '1',
   users: [
     {
       name: 'admin',
@@ -350,23 +432,100 @@ export const INITIAL_STATE: ErpState = {
       },
     },
   ],
-  companies: [{ num: 1, name: 'النظام' }],
+  companies: [
+    { num: 1, name: 'النظام' },
+    { num: 2, name: 'القيصر الذهبي - thalia' },
+    { num: 3, name: 'القيصر' },
+    { num: 4, name: 'العامري' },
+  ],
   years: [{ m: 1, year: '2026', next: '0', notes: 'السنة المالية الحالية' }],
   journal: [],
+  journalOptions: DEFAULT_JOURNAL_OPTIONS,
+  reportTemplates: DEFAULT_REPORT_TEMPLATES,
+  invoices: [],
+  importedMaterials: [],
+  license: {
+    productCode: 'S1BCNSAG901734',
+    licenseCode: 'qIOSfWU4V5nDqkmfRwj3V3G8pQzBHRduww==',
+  },
   props: DEFAULT_PROPS,
   accountOptions: createDefaultAccountOptions(),
   alerts: {
-    0: true,
-    1: true,
+    0: false,
+    1: false,
     2: true,
-    3: false,
-    4: false,
-    5: true,
+    3: true,
+    4: true,
+    5: false,
+    6: true,
+    7: true,
+    8: false,
+    9: false,
+  },
+  alertDays: {
+    expiry: 0,
+    checks: 0,
   },
   currencies: [
-    { code: 'YER', name: 'ريال يمني', symbol: 'ر.ي', rate: 1, isBase: true },
-    { code: 'SAR', name: 'ريال سعودي', symbol: 'ر.س', rate: 140 },
-    { code: 'USD', name: 'دولار أمريكي', symbol: '$', rate: 530 },
+    {
+      code: 'YER',
+      name: 'ريال يمني',
+      foreignName: 'Yemeni Rial',
+      symbol: 'ر ي',
+      subUnit: 'فلس',
+      rate: 1,
+      decimals: 2,
+      dualName: 'ريالان',
+      pluralName: 'ريالات',
+      gender: 'انثى',
+      isBase: true,
+    },
+    {
+      code: 'SAR',
+      name: 'ريال سعودي',
+      foreignName: 'Saudi Riyal',
+      symbol: 'ر س',
+      subUnit: 'فلس',
+      rate: 120,
+      decimals: 4,
+      dualName: 'ريالان',
+      pluralName: 'ريالات',
+      gender: 'ذكر',
+    },
+    {
+      code: 'USD',
+      name: 'دولار',
+      foreignName: 'US Dollar',
+      symbol: '$',
+      subUnit: 'سينت',
+      rate: 491,
+      decimals: 2,
+      dualName: 'دولاران',
+      pluralName: 'دولارات',
+      gender: 'ذكر',
+    },
+  ],
+  appointments: [
+    {
+      id: 'apt-1',
+      date: '2026/11/24',
+      time: '11:42:11 ص',
+      text: 'مراجعة أرصدة الصناديق والبنوك',
+      location: 'الإدارة المالية',
+      notes: 'متابعة يومية',
+      repeat: 'daily',
+      soundFile: 'SaveOk.Wav',
+    },
+    {
+      id: 'apt-2',
+      date: '2026/11/28',
+      time: '09:30:00 ص',
+      text: 'سداد دفعة الموردين الشهرية',
+      location: 'المكتب الرئيسي',
+      notes: 'شيك مستحق',
+      repeat: 'monthly30',
+      soundFile: 'Attention.Wav',
+    },
   ],
 };
 
@@ -380,6 +539,7 @@ export function loadErpState(): ErpState {
     return {
       ...INITIAL_STATE,
       ...parsed,
+      activeBranch: parsed.activeBranch || INITIAL_STATE.activeBranch,
       props: {
         ...DEFAULT_PROPS,
         ...(parsed.props || {}),
@@ -400,11 +560,37 @@ export function loadErpState(): ErpState {
         ...INITIAL_STATE.alerts,
         ...(parsed.alerts || {}),
       },
+      alertDays: {
+        expiry: parsed.alertDays?.expiry ?? 0,
+        checks: parsed.alertDays?.checks ?? 0,
+      },
+      license: {
+        ...INITIAL_STATE.license,
+        ...(parsed.license || {}),
+      },
       users: parsed.users?.length ? parsed.users : INITIAL_STATE.users,
       companies: parsed.companies?.length ? parsed.companies : INITIAL_STATE.companies,
       years: parsed.years?.length ? parsed.years : INITIAL_STATE.years,
       journal: Array.isArray(parsed.journal) ? parsed.journal : [],
+      journalOptions: {
+        sticky: {
+          ...DEFAULT_JOURNAL_OPTIONS.sticky,
+          ...(parsed.journalOptions?.sticky || {}),
+        },
+        columns: {
+          ...DEFAULT_JOURNAL_OPTIONS.columns,
+          ...(parsed.journalOptions?.columns || {}),
+        },
+      },
+      reportTemplates: parsed.reportTemplates?.length
+        ? parsed.reportTemplates
+        : DEFAULT_REPORT_TEMPLATES,
+      invoices: Array.isArray(parsed.invoices) ? parsed.invoices : [],
+      importedMaterials: Array.isArray(parsed.importedMaterials) ? parsed.importedMaterials : [],
       currencies: parsed.currencies?.length ? parsed.currencies : INITIAL_STATE.currencies,
+      appointments: Array.isArray(parsed.appointments)
+        ? parsed.appointments
+        : INITIAL_STATE.appointments,
     };
   } catch {
     return INITIAL_STATE;

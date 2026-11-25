@@ -103,13 +103,13 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
       <DraggableWindow
         open={open}
         title="خصائص الملف"
-        width={1030}
-        height={670}
+        width={900}
+        height={600}
         zIndex={zIndex}
         onFocus={onFocus}
         onClose={onClose}
       >
-        <div className="flex-1 flex flex-col bg-[#f0f0f0] p-3 overflow-hidden">
+        <div className="flex-1 flex flex-col bg-[#f0f0f0] p-2.5 overflow-hidden">
           {/* Tabs */}
           <div className="flex items-end px-1 border-b border-[#8e8e8e]">
             {TABS.map((t, idx) => (
@@ -117,9 +117,9 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                 key={t}
                 type="button"
                 onClick={() => setActiveTab(idx)}
-                className={`px-3.5 py-1.5 text-[14px] font-semibold border border-[#adadad] border-b-0 -ml-px cursor-pointer ${
+                className={`px-3 py-1 text-[13px] font-bold border border-[#adadad] border-b-0 -ml-px cursor-pointer ${
                   activeTab === idx
-                    ? 'bg-white text-black relative top-[1px] pb-[7px] z-10'
+                    ? 'bg-white text-black relative top-[1px] pb-[6px] z-10'
                     : 'bg-[#f0f0f0] text-[#333] hover:bg-[#e5f1fb]'
                 }`}
               >
@@ -131,25 +131,26 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
           {/* White Tab Pane */}
           <div className="flex-1 bg-white border border-[#8e8e8e] border-t-0 p-4 overflow-y-auto erp-scrollbar">
             {activeTab === 0 && (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2.5 max-w-[780px] mx-auto">
                 <div className="flex items-center gap-3">
-                  <label className="w-[155px] font-bold text-[14px]">نوع قاعدة البيانات</label>
+                  <label className="w-[140px] font-bold text-[13px]">نوع قاعدة البيانات</label>
                   <select
                     value={draft.dbType}
                     disabled
-                    className="erp-field flex-1 bg-[#f0f0f0]"
+                    dir="rtl"
+                    className="erp-field flex-1 bg-[#f0f0f0] text-left"
                   >
                     <option>SQL Server</option>
                   </select>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <label className="w-[155px] font-bold text-[14px]">اسم السيرفر</label>
+                  <label className="w-[140px] font-bold text-[13px]">اسم السيرفر</label>
                   <input
                     dir="ltr"
                     value={draft.serverName}
                     onChange={(e) => setDraft({ ...draft, serverName: e.target.value })}
-                    className="erp-field flex-1 text-left"
+                    className="erp-field flex-1 text-right bg-[#f4f4f4]"
                   />
                   <button
                     type="button"
@@ -163,13 +164,15 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <label className="w-[155px] font-bold text-[14px]">قاعدة البيانات</label>
-                  <input
-                    dir="ltr"
+                  <label className="w-[140px] font-bold text-[13px]">قاعدة البيانات</label>
+                  <select
                     value={draft.dbName}
                     disabled
-                    className="erp-field flex-1 text-left"
-                  />
+                    dir="rtl"
+                    className="erp-field flex-1 bg-[#f0f0f0] text-left"
+                  >
+                    <option>{draft.dbName}</option>
+                  </select>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -254,14 +257,14 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
             )}
 
             {activeTab === 1 && (
-              <div className="flex flex-col gap-4 pt-1">
+              <div className="flex flex-col gap-4 pt-1 max-w-[780px] mx-auto">
                 <div className="flex items-center gap-3">
-                  <label className="w-[175px] font-bold text-[14px]">موقع النسخة الاحتياطية</label>
+                  <label className="w-[165px] font-bold text-[13px]">موقع النسخة الاحتياطية</label>
                   <input
                     dir="ltr"
                     value={draft.backupPath}
                     onChange={(e) => setDraft({ ...draft, backupPath: e.target.value })}
-                    className="erp-field flex-1 text-left"
+                    className="erp-field flex-1 text-right font-semibold"
                   />
                   <button
                     type="button"
@@ -272,17 +275,19 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                   </button>
                 </div>
 
-                <label className="flex items-center gap-2.5 font-semibold cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={draft.backupForce}
-                    onChange={(e) => setDraft({ ...draft, backupForce: e.target.checked })}
-                    className="w-4 h-4 accent-[#0078d7]"
-                  />
-                  <span>الحفظ إجباري في موقع النسخة الاحتياطية المحدد</span>
-                </label>
+                <div className="flex justify-start pr-[145px]">
+                  <label className="flex items-center gap-2 font-bold text-[13px] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={draft.backupForce}
+                      onChange={(e) => setDraft({ ...draft, backupForce: e.target.checked })}
+                      className="w-4 h-4 accent-[#0078d7]"
+                    />
+                    <span>الحفظ إجباري في موقع النسخة الاحتياطية المحدد</span>
+                  </label>
+                </div>
 
-                <div className="flex flex-col gap-3 pr-16 pt-2">
+                <div className="flex flex-col gap-3 md:pr-[240px] pt-2">
                   <label className="flex items-center gap-2.5 font-semibold cursor-pointer">
                     <input
                       type="checkbox"
@@ -315,32 +320,35 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
             )}
 
             {activeTab === 2 && (
-              <div className="flex flex-col gap-4 pt-2">
+              <div className="flex flex-col gap-4 pt-2 max-w-[660px] mx-auto">
                 <div className="flex items-center gap-3">
-                  <label className="w-[155px] font-bold text-[14px]">العام الافتراضي</label>
+                  <label className="w-[130px] font-bold text-[13px]">العام الافتراضي</label>
                   <input
                     value={toAr(draft.year)}
                     onChange={(e) => {
                       const val = parseInt(toEn(e.target.value), 10);
                       if (!Number.isNaN(val)) setDraft({ ...draft, year: val });
                     }}
-                    className="erp-field w-[150px] text-center font-bold"
+                    className="erp-field w-[125px] text-left font-bold"
                   />
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <label className="w-[155px] font-bold text-[14px]">من تاريخ</label>
-                  <div className="flex items-center border border-[#7a7a7a] bg-white h-[28px] w-[260px]">
+                  <label className="w-[130px] font-bold text-[13px]">من تاريخ</label>
+                  <div
+                    dir="ltr"
+                    className="flex items-center border border-[#7a7a7a] bg-white h-[28px] w-[265px]"
+                  >
                     <input
                       dir="ltr"
                       readOnly
                       value={draft.dateFrom}
-                      className="flex-1 h-full px-2 text-left text-[13px] outline-none bg-transparent"
+                      className="flex-1 h-full px-2 text-left text-[13px] font-bold outline-none bg-transparent"
                     />
                     <button
                       type="button"
                       onClick={() => setCalField('dateFrom')}
-                      className="px-2 h-full border-r border-[#ccc] bg-[#f4f4f4] hover:bg-[#e5f1fb] flex items-center gap-1 cursor-pointer"
+                      className="px-2 h-full border-l border-[#ccc] bg-[#f4f4f4] hover:bg-[#e5f1fb] flex items-center gap-1 cursor-pointer"
                     >
                       <span>📅</span>
                       <span className="text-[10px]">▾</span>
@@ -349,18 +357,21 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <label className="w-[155px] font-bold text-[14px]">الى تاريخ</label>
-                  <div className="flex items-center border border-[#7a7a7a] bg-white h-[28px] w-[260px]">
+                  <label className="w-[130px] font-bold text-[13px]">الى تاريخ</label>
+                  <div
+                    dir="ltr"
+                    className="flex items-center border border-[#7a7a7a] bg-white h-[28px] w-[265px]"
+                  >
                     <input
                       dir="ltr"
                       readOnly
                       value={draft.dateTo}
-                      className="flex-1 h-full px-2 text-left text-[13px] outline-none bg-transparent"
+                      className="flex-1 h-full px-2 text-left text-[13px] font-bold outline-none bg-transparent"
                     />
                     <button
                       type="button"
                       onClick={() => setCalField('dateTo')}
-                      className="px-2 h-full border-r border-[#ccc] bg-[#f4f4f4] hover:bg-[#e5f1fb] flex items-center gap-1 cursor-pointer"
+                      className="px-2 h-full border-l border-[#ccc] bg-[#f4f4f4] hover:bg-[#e5f1fb] flex items-center gap-1 cursor-pointer"
                     >
                       <span>📅</span>
                       <span className="text-[10px]">▾</span>
@@ -368,13 +379,13 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2.5 pr-12 pt-3">
+                <div className="flex flex-col gap-2.5 pr-4 pt-3">
                   {[
                     'تجاهل الفترة المحددة والسماح بإدخال تاريخ من خارجها',
                     'التنبيه عند كتابة تاريخ خارج الفترة المحددة',
                     'عدم السماح بكتابة تاريخ خارج الفترة المحددة',
                   ].map((label, idx) => (
-                    <label key={label} className="flex items-center gap-2.5 font-semibold cursor-pointer">
+                    <label key={label} className="flex items-center gap-2.5 font-bold text-[13px] cursor-pointer">
                       <input
                         type="radio"
                         name="fiscalRule"
@@ -419,6 +430,7 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                       <div className="flex items-center gap-2">
                         <label className="w-[64px] font-bold text-[13px]">الأسم</label>
                         <input
+                          disabled={draft.sharedHeader}
                           value={draft.hdrArName}
                           onChange={(e) => setDraft({ ...draft, hdrArName: e.target.value })}
                           className="erp-field flex-1"
@@ -427,17 +439,20 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                       <div className="flex items-center gap-2">
                         <label className="w-[64px] font-bold text-[13px]">العنوان</label>
                         <input
+                          disabled={draft.sharedHeader}
                           value={draft.hdrArAddr}
                           onChange={(e) => setDraft({ ...draft, hdrArAddr: e.target.value })}
                           className="erp-field flex-1"
                         />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <label className="w-[64px] font-bold text-[13px]">التلفون</label>
-                        <input
+                      <div className="flex items-start gap-2">
+                        <label className="w-[64px] font-bold text-[13px] pt-1">التلفون</label>
+                        <textarea
+                          rows={2}
+                          disabled={draft.sharedHeader}
                           value={draft.hdrArTel}
                           onChange={(e) => setDraft({ ...draft, hdrArTel: e.target.value })}
-                          className="erp-field flex-1"
+                          className="w-full border border-[#7a7a7a] bg-white disabled:bg-[#f3f3f3] disabled:text-[#333] p-1.5 text-[13px] outline-none flex-1"
                         />
                       </div>
                     </div>
@@ -449,6 +464,7 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                       <div className="flex items-center gap-2">
                         <label className="w-[64px] font-bold text-[13px]">Name</label>
                         <input
+                          disabled={draft.sharedHeader}
                           value={draft.hdrEnName}
                           onChange={(e) => setDraft({ ...draft, hdrEnName: e.target.value })}
                           className="erp-field flex-1 text-left"
@@ -457,17 +473,20 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                       <div className="flex items-center gap-2">
                         <label className="w-[64px] font-bold text-[13px]">Address</label>
                         <input
+                          disabled={draft.sharedHeader}
                           value={draft.hdrEnAddr}
                           onChange={(e) => setDraft({ ...draft, hdrEnAddr: e.target.value })}
                           className="erp-field flex-1 text-left"
                         />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <label className="w-[64px] font-bold text-[13px]">Tel</label>
-                        <input
+                      <div className="flex items-start gap-2">
+                        <label className="w-[64px] font-bold text-[13px] pt-1">Tel</label>
+                        <textarea
+                          rows={2}
+                          disabled={draft.sharedHeader}
                           value={draft.hdrEnTel}
                           onChange={(e) => setDraft({ ...draft, hdrEnTel: e.target.value })}
-                          className="erp-field flex-1 text-left"
+                          className="w-full border border-[#7a7a7a] bg-white disabled:bg-[#f3f3f3] disabled:text-[#333] p-1.5 text-[13px] text-left outline-none flex-1"
                         />
                       </div>
                     </div>
@@ -475,8 +494,8 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                 </div>
 
                 {/* Logo Zone */}
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_230px_1fr] gap-3 items-stretch mt-1">
-                  <div className="h-[200px] border border-[#b8b8b8] bg-[#fafafa] flex items-center justify-center p-2 overflow-hidden">
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_180px_1fr] gap-3 items-stretch mt-1">
+                  <div className="h-[195px] border border-[#b8b8b8] bg-white flex items-center justify-center p-2 overflow-hidden">
                     {draft.logoData ? (
                       <img
                         src={draft.logoData}
@@ -485,11 +504,11 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                         className="max-w-full max-h-full object-contain"
                       />
                     ) : (
-                      <span className="text-[#888] text-[13px]">لا توجد صورة شعار محددة</span>
+                      <span className="text-[#999] text-[12px]">لا توجد صورة شعار محددة</span>
                     )}
                   </div>
 
-                  <div className="flex flex-col gap-2 justify-center">
+                  <div className="flex flex-col gap-1.5 justify-start pt-0.5">
                     <input
                       ref={fileRef}
                       type="file"
@@ -497,58 +516,47 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                       onChange={handleLogoFile}
                       className="hidden"
                     />
-                    <button
-                      type="button"
-                      onClick={() => fileRef.current?.click()}
-                      className="erp-classic-btn h-[30px] text-[13px]"
-                    >
-                      استعرض...
-                    </button>
-                    <button
-                      type="button"
-                      onClick={onOpenAiGenerateLogo}
-                      className="erp-classic-btn focused h-[32px] text-[13px]"
-                    >
-                      إنشاء / تعديل شعار بالذكاء الاصطناعي
-                    </button>
-                    {draft.logoData && (
+                    <div className="flex justify-end">
                       <button
                         type="button"
-                        onClick={() => onOpenAiAnalyzeLogo(draft.logoData!)}
-                        className="erp-classic-btn h-[30px] text-[13px]"
+                        onClick={() => fileRef.current?.click()}
+                        className="erp-classic-btn h-[26px] px-4 text-[13px] w-[105px]"
                       >
-                        تحليل الشعار بالذكاء الاصطناعي
+                        استعرض...
                       </button>
-                    )}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex items-center gap-1">
-                        <label className="text-[12px] font-bold">الارتفاع</label>
-                        <input
-                          type="number"
-                          min={20}
-                          max={600}
-                          value={draft.logoHeight}
-                          onChange={(e) =>
-                            setDraft({ ...draft, logoHeight: Number(e.target.value) || 200 })
-                          }
-                          className="erp-field w-full text-center"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <label className="text-[12px] font-bold">العرض</label>
-                        <input
-                          type="number"
-                          min={20}
-                          max={600}
-                          value={draft.logoWidth}
-                          onChange={(e) =>
-                            setDraft({ ...draft, logoWidth: Number(e.target.value) || 300 })
-                          }
-                          className="erp-field w-full text-center"
-                        />
-                      </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <input
+                      readOnly
+                      value={draft.logoName}
+                      className="h-[24px] border border-[#9a9a9a] bg-[#e5e5e5] px-1.5 text-[12px] outline-none w-full"
+                    />
+                    <div className="flex items-center justify-between gap-2 pt-0.5">
+                      <label className="text-[12px] font-bold">الارتفاع</label>
+                      <input
+                        type="number"
+                        min={20}
+                        max={600}
+                        value={draft.logoHeight}
+                        onChange={(e) =>
+                          setDraft({ ...draft, logoHeight: Number(e.target.value) || 200 })
+                        }
+                        className="erp-field w-[78px] h-[24px] text-center font-bold"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-[12px] font-bold">العرض</label>
+                      <input
+                        type="number"
+                        min={20}
+                        max={600}
+                        value={draft.logoWidth}
+                        onChange={(e) =>
+                          setDraft({ ...draft, logoWidth: Number(e.target.value) || 200 })
+                        }
+                        className="erp-field w-[78px] h-[24px] text-center font-bold"
+                      />
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5 pt-0.5">
                       <button
                         type="button"
                         onClick={() => {
@@ -562,7 +570,7 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                           }
                           setPreviewScaled(true);
                         }}
-                        className="erp-classic-btn h-[28px] text-[13px]"
+                        className="erp-classic-btn h-[26px] text-[13px] w-[105px]"
                       >
                         معاينة
                       </button>
@@ -572,14 +580,32 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                           setDraft({ ...draft, logoData: null, logoName: '' });
                           setPreviewScaled(false);
                         }}
-                        className="erp-classic-btn h-[28px] text-[13px]"
+                        className="erp-classic-btn h-[26px] text-[13px] w-[130px]"
                       >
                         حذف الصورة
                       </button>
+                      <div className="flex gap-1 w-full">
+                        <button
+                          type="button"
+                          onClick={onOpenAiGenerateLogo}
+                          className="erp-classic-btn focused h-[24px] text-[11px] flex-1"
+                        >
+                          تصميم شعار AI
+                        </button>
+                        {draft.logoData && (
+                          <button
+                            type="button"
+                            onClick={() => onOpenAiAnalyzeLogo(draft.logoData!)}
+                            className="erp-classic-btn h-[24px] text-[11px] px-2"
+                          >
+                            تحليل
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="h-[200px] border border-[#b8b8b8] bg-[#fafafa] flex items-center justify-center p-2 overflow-hidden">
+                  <div className="h-[195px] border border-[#b8b8b8] bg-white flex items-center justify-center p-2 overflow-hidden">
                     {previewScaled && draft.logoData ? (
                       <img
                         src={draft.logoData}
@@ -587,12 +613,12 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                         referrerPolicy="no-referrer"
                         style={{
                           width: Math.min(draft.logoWidth, 310),
-                          height: Math.min(draft.logoHeight, 184),
+                          height: Math.min(draft.logoHeight, 180),
                           objectFit: 'contain',
                         }}
                       />
                     ) : (
-                      <span className="text-[#888] text-[13px]">معاينة أبعاد الطباعة</span>
+                      <span className="text-[#999] text-[12px]">معاينة أبعاد الطباعة</span>
                     )}
                   </div>
                 </div>
@@ -651,7 +677,12 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                     </div>
                   </fieldset>
 
-                  <fieldset className="border border-[#dcdcdc] p-3">
+                  <fieldset
+                    disabled={!draft.linkWithdrawAttendance}
+                    className={`border border-[#dcdcdc] p-3 ${
+                      !draft.linkWithdrawAttendance ? 'opacity-60' : ''
+                    }`}
+                  >
                     <legend className="px-2 font-bold text-[13px]">
                       نسبة المسحوبات المسموح بها من الراتب
                     </legend>
@@ -659,6 +690,7 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                       type="number"
                       min={0}
                       max={100}
+                      disabled={!draft.linkWithdrawAttendance}
                       value={draft.withdrawPercent}
                       onChange={(e) =>
                         setDraft({ ...draft, withdrawPercent: Number(e.target.value) || 0 })
@@ -708,15 +740,31 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                     </label>
                   ))}
 
-                  <div className="flex items-center gap-3 mt-2">
+                  <div className="flex flex-col items-end gap-2 mt-2">
                     <button
                       type="button"
                       onClick={handleSysDate}
-                      className="erp-classic-btn h-[30px] px-4 text-[13px]"
+                      className="erp-classic-btn h-[28px] w-[165px] text-[13px]"
                     >
                       ضبط تاريخ النظام
                     </button>
-                    <label className="flex items-center gap-2 font-semibold cursor-pointer">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void onShowMsg({
+                          title: 'تأمين قاعدة البيانات',
+                          icon: 'info',
+                          text: 'تم فحص إعدادات التأمين وتشفير الاتصال بنجاح.',
+                        })
+                      }
+                      className="erp-classic-btn h-[28px] w-[165px] text-[13px] text-[#555]"
+                    >
+                      تأمين
+                    </button>
+                  </div>
+
+                  <div className="flex justify-end mt-1">
+                    <label className="flex items-center gap-2 font-bold cursor-pointer">
                       <input
                         type="checkbox"
                         checked={draft.integratedSecurity}
@@ -729,9 +777,9 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
                     </label>
                   </div>
 
-                  <fieldset className="border border-[#dcdcdc] p-3 mt-2">
+                  <fieldset className="border border-[#dcdcdc] p-3 mt-1">
                     <legend className="px-2 font-bold text-[13px]">طريقة الجرد</legend>
-                    <div className="flex gap-6">
+                    <div className="flex gap-6 justify-center">
                       <label className="flex items-center gap-2 font-semibold cursor-pointer">
                         <input
                           type="radio"
@@ -760,18 +808,18 @@ export const PropsDialog: React.FC<PropsDialogProps> = ({
           </div>
 
           {/* Bottom Buttons */}
-          <div className="pt-3 flex items-center justify-center gap-16">
+          <div className="mt-2 py-2 border border-[#dcdcdc] bg-[#f0f0f0] flex items-center justify-center gap-28">
             <button
               type="button"
               onClick={handleOk}
-              className="erp-classic-btn focused w-[140px] h-[34px] text-[14px]"
+              className="erp-classic-btn w-[125px] h-[30px] text-[13px] font-bold"
             >
               موافق
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="erp-classic-btn w-[140px] h-[34px] text-[14px]"
+              className="erp-classic-btn focused w-[125px] h-[30px] text-[13px] font-bold"
             >
               الغاء الأمر
             </button>

@@ -45,6 +45,36 @@ export interface JournalEntry {
   doc: string;
   by: string;
   at: string;
+  updatedBy?: string;
+  updatedAt?: string;
+  editCount?: number;
+  posted?: boolean;
+  postedAt?: string;
+}
+
+export interface JournalOptionsState {
+  sticky: {
+    dhm: boolean;
+    rec: boolean;
+    pay: boolean;
+    to: boolean;
+    from: boolean;
+    stmt: boolean;
+  };
+  columns: {
+    showUser: boolean;
+    showCreatedAt: boolean;
+    showUpdatedBy: boolean;
+    showUpdatedAt: boolean;
+    showDoc: boolean;
+    showEditCount: boolean;
+  };
+}
+
+export interface ReportTemplateItem {
+  id: string;
+  name: string;
+  reportType: string;
 }
 
 export interface AccountOptionPair {
@@ -110,21 +140,97 @@ export interface GeneralPropsState {
 export interface CurrencyItem {
   code: string;
   name: string;
+  foreignName?: string;
   symbol: string;
+  subUnit?: string;
   rate: number;
+  decimals?: number;
+  minRate?: string;
+  maxRate?: string;
+  dualName?: string;
+  pluralName?: string;
+  gender?: 'ذكر' | 'انثى' | '';
   isBase?: boolean;
+}
+
+export interface InvoiceLineItem {
+  id: string;
+  code: string;
+  name: string;
+  unit: string;
+  qty: number;
+  price: number;
+  cost: number;
+}
+
+export interface InvoiceRecord {
+  id: string;
+  kind: string;
+  number: string;
+  date: string;
+  party: string;
+  currency: string;
+  notes: string;
+  items: InvoiceLineItem[];
+  total: number;
+  profit: number;
+  by: string;
+  posted?: boolean;
+  postedAt?: string;
+}
+
+export interface ImportedMaterialItem {
+  code: string;
+  name: string;
+  foreignName: string;
+  barcode: string;
+  qty: string;
+  purchasePrice: string;
+  mainUnit: string;
+  maxLimit: string;
+  minLimit: string;
+  warehouse: string;
+  unit1: string;
+  unit2: string;
+  expiryDate: string;
+}
+
+export interface LicenseState {
+  productCode: string;
+  licenseCode: string;
+}
+
+export type AppointmentRepeat = 'none' | 'daily' | 'weekly' | 'monthly30' | 'yearly';
+
+export interface AppointmentItem {
+  id: string;
+  date: string;
+  time: string;
+  text: string;
+  location: string;
+  notes: string;
+  repeat: AppointmentRepeat;
+  soundFile: string;
 }
 
 export interface ErpState {
   currentUser: string;
+  activeBranch: string;
   users: ErpUser[];
   companies: CompanyRecord[];
   years: YearRecord[];
   journal: JournalEntry[];
+  journalOptions: JournalOptionsState;
+  reportTemplates: ReportTemplateItem[];
+  invoices: InvoiceRecord[];
+  importedMaterials: ImportedMaterialItem[];
+  license: LicenseState;
   props: GeneralPropsState;
   accountOptions: AccountOptionsState;
   alerts: Record<number, boolean>;
+  alertDays?: { expiry: number; checks: number };
   currencies: CurrencyItem[];
+  appointments: AppointmentItem[];
 }
 
 export interface ExtractedInvoiceData {

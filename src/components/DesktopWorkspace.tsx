@@ -18,44 +18,72 @@ const SETTINGS_BUTTONS: PanelButtonDef[] = [
   { key: 'users', label: 'صلاحيات المستخدمين' },
   { key: 'accountOptions', label: 'خيارات الحسابات العامة' },
   { key: 'alerts', label: 'تنبيهات النظام' },
-  { key: 'companies', label: 'بيانات الشركات والسنوات' },
 ];
 
 const FILE_BUTTONS: (PanelButtonDef | null)[] = [
   { key: 'journal', label: 'اليومية العامة' },
   { key: 'addCompany', label: 'إضافة شركة جديدة' },
-  { key: 'switchUser', label: 'تغيير المستخدم' },
+  { key: 'switchUser', label: 'تغير المستخدم' },
   { key: 'backupNow', label: 'عمل نسخة احتياطية' },
   { key: 'restoreBackup', label: 'استرجاع نسخة احتياطية' },
   { key: 'pagesSetup', label: 'تعريف ترويسة / تذيل' },
   { key: 'contact', label: 'اتصال' },
-  { key: 'companies', label: 'قائمة الشركات' },
-  { key: 'exportJournalCsv', label: 'تصدير القيود إلى اكسل' },
-  { key: 'aiStudioGenerate', label: 'الاستوديو الذكي للصور' },
+  { key: 'companiesPicker', label: 'قائمة الشركات' },
+  { key: 'excelImport', label: 'استيراد من اكسل' },
+  null,
   { key: 'shutdown', label: 'انهاء البرنامج' },
+  { key: 'aiStudioGenerate', label: 'الاستوديو الذكي للصور' },
 ];
 
 const TOOLS_BUTTONS: (PanelButtonDef | null)[] = [
+  { key: 'generalReport', label: 'التقرير العام' },
+  { key: 'reviewMovements', label: 'مراجعة الحركات' },
+  { key: 'postDailyMovement', label: 'ترحيل الحركة اليومية' },
+  { key: 'currencies', label: 'قائمة العملات' },
+  { key: 'systemRegistration', label: 'تسجيل النظام' },
+  { key: 'systemCheck', label: 'فحص النظام' },
+  { key: 'appointments', label: 'مستعرض مواعيد اليوم' },
+  { key: 'printSetup', label: 'إعداد نماذج الطباعة' },
   { key: 'aiStudioGenerate', label: 'إنشاء وتعديل الصور بالذكاء الاصطناعي' },
   { key: 'aiStudioAnalyze', label: 'تحليل الصور والفواتير بالذكاء الاصطناعي' },
-  { key: 'generalReport', label: 'التقرير العام' },
-  { key: 'currencies', label: 'قائمة العملات' },
-  { key: 'systemCheck', label: 'فحص النظام' },
-  { key: 'printSetup', label: 'إعداد نماذج الطباعة' },
+];
+
+const INVOICES_BUTTONS: PanelButtonDef[] = [
+  { key: 'inv:new_sales', label: 'فاتورة مبيعات جديدة\nCtrl+F2' },
+  { key: 'inv:browse_sales', label: 'استعراض وتعديل فاتورة مبيعات\nShift+F2' },
+  { key: 'inv:new_purchase', label: 'فاتورة مشتريات جديدة\nCtrl+F1' },
+  { key: 'inv:browse_purchase', label: 'استعراض وتعديل فاتورة مشتريات\nShift+F1' },
+  { key: 'inv:new_sales_return', label: 'مردود مبيعات جديدة' },
+  { key: 'inv:browse_sales_return', label: 'استعراض وتعديل فاتورة مردود مبيعات' },
+  { key: 'inv:new_purchase_return', label: 'مردود مشتريات جديدة' },
+  { key: 'inv:browse_purchase_return', label: 'استعراض وتعديل فاتورة مردود مشتريات' },
+  { key: 'inv:new_in_note', label: 'مذكرة ادخال جديدة' },
+  { key: 'inv:browse_in_note', label: 'استعراض وتعديل مذكرة ادخال' },
+  { key: 'inv:new_out_note', label: 'مذكرة اخراج جديدة' },
+  { key: 'inv:browse_out_note', label: 'استعراض وتعديل مذكرة اخراج' },
+  { key: 'inv:new_transfer', label: 'مذكرة نقل جديدة\nCtrl+Shift+F12' },
+  { key: 'inv:browse_transfer', label: 'استعراض وتعديل مذكرة نقل\nShift+F12' },
+  { key: 'inv:new_po', label: 'طلب شراء جديدة' },
+  { key: 'inv:browse_po', label: 'استعراض وتعديل طلب شراء' },
+  { key: 'inv:new_reserve', label: 'حجز مبيعات جديدة' },
+  { key: 'inv:browse_reserve', label: 'استعراض وتعديل حجز مبيعات' },
+  { key: 'inv:new_quote', label: 'عرض أسعار' },
+  { key: 'inv:browse_quote', label: 'استعراض وتعديل عرض أسعار' },
+  { key: 'inv:opening_inv', label: 'مذكرة جرد إفتتاحي' },
+  { key: 'inv:adjust_inv', label: 'مذكرة جرد - تسوية مخزنية' },
+  { key: 'inv:count_invoices', label: 'جرد فواتير' },
+  { key: 'inv:profit_report', label: 'تقرير ارباح الفواتير' },
+  { key: 'inv:today_profit', label: 'ارباح فواتير اليوم' },
 ];
 
 const SECTION_SHORTCUTS: Partial<Record<SectionKey, PanelButtonDef[]>> = {
-  الفواتير: [
-    { key: 'aiStudioAnalyze', label: 'مسح وتحليل فاتورة بالذكاء الاصطناعي' },
-    { key: 'journal', label: 'قيد مبيعات / مشتريات باليومية' },
-    { key: 'printSetup', label: 'إعداد نماذج الطباعة' },
-    { key: 'accountOptions', label: 'خيارات حسابات الفواتير' },
-  ],
+  الفواتير: INVOICES_BUTTONS,
   الحسابات: [
     { key: 'journal', label: 'اليومية العامة' },
+    { key: 'accTree', label: 'شجرة الحسابات' },
+    { key: 'detailedStatement', label: 'كشف حساب تفصيلي' },
     { key: 'accountOptions', label: 'خيارات الحسابات العامة' },
     { key: 'currencies', label: 'قائمة العملات' },
-    { key: 'generalReport', label: 'كشف الحساب والتقرير العام' },
   ],
   القيود: [
     { key: 'journal', label: 'اليومية العامة' },
@@ -73,6 +101,7 @@ const SECTION_SHORTCUTS: Partial<Record<SectionKey, PanelButtonDef[]>> = {
     { key: 'aiStudioGenerate', label: 'تصميم بطاقات وشعارات الموظفين' },
   ],
   'تقارير الحسابات': [
+    { key: 'detailedStatement', label: 'كشف حساب تفصيلي' },
     { key: 'generalReport', label: 'التقرير العام للحسابات' },
     { key: 'printSetup', label: 'إعداد نماذج الطباعة' },
     { key: 'pagesSetup', label: 'تصميم الترويسة والتذيل' },
@@ -399,7 +428,7 @@ export const DesktopWorkspace: React.FC<DesktopWorkspaceProps> = ({
                 key={slot.key}
                 type="button"
                 onClick={() => onAction(slot.key)}
-                className={`h-[74px] sm:h-[82px] border-2 border-black px-2 text-[15px] sm:text-[16px] font-bold text-black flex items-center justify-center text-center leading-snug cursor-pointer transition-colors ${
+                className={`h-[74px] sm:h-[82px] border-2 border-black px-2 text-[14px] sm:text-[15px] font-bold text-black flex items-center justify-center text-center leading-snug whitespace-pre-line cursor-pointer transition-colors ${
                   isSelected
                     ? 'bg-[#a3a5d8] shadow-[inset_0_0_0_1px_#000]'
                     : 'bg-[#c0c0ff] hover:bg-[#b0b0ff] active:bg-[#9c9cf5]'
