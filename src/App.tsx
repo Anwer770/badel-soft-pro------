@@ -105,6 +105,7 @@ const INVOICE_ACTION_META: Record<string, InvoicesModalLaunch> = {
 export default function App() {
   const [state, setState] = useState<ErpState>(() => loadErpState());
   const [activeSection, setActiveSection] = useState<SectionKey>('الاعدادات');
+  const [panelOpen, setPanelOpen] = useState(false);
   const [activeButtonKey, setActiveButtonKey] = useState<string | null>(null);
   const [minimizedShell, setMinimizedShell] = useState(false);
   const [isShutdown, setIsShutdown] = useState(false);
@@ -544,17 +545,27 @@ export default function App() {
 
           <MenuAndToolbar
             activeSection={activeSection}
+            panelOpen={panelOpen}
             showMenus={state.props.showMenus}
             showTiles={state.props.showTiles}
-            onSelectSection={(sec) => setActiveSection(sec)}
+            onSelectSection={(sec) => {
+              if (panelOpen && activeSection === sec) {
+                setPanelOpen(false);
+              } else {
+                setActiveSection(sec);
+                setPanelOpen(true);
+              }
+            }}
             onDropdownAction={handleDropdownAction}
           />
 
           <DesktopWorkspace
             activeSection={activeSection}
+            panelOpen={panelOpen}
             activeButtonKey={activeButtonKey}
             journalOpen={openWindows.journal}
             onAction={handleAction}
+            onDismissPanel={() => setPanelOpen(false)}
           />
 
           <StatusBar
@@ -784,6 +795,7 @@ export default function App() {
         mode={backupMode}
         zIndex={zOrder.backupRestore}
         propsState={state.props}
+        currentState={state}
         onFocus={() => focusWindow('backupRestore')}
         onClose={() => closeWindow('backupRestore')}
         onExecuteBackup={({ serverName, dbName, backupPath, integratedSecurity }) => {

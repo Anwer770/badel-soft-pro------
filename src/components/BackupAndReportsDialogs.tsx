@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   ErpState,
   GeneralPropsState,
@@ -6,13 +6,132 @@ import type {
   ReportTemplateItem,
 } from '../types/erp';
 import { DraggableWindow } from './DraggableWindow';
-import { FolderBrowseDialog } from './FolderBrowseDialog';
+
+const BACKUP_HISTORY_KEY = 'badel_soft_backup_history_v1';
+
+interface SavedBackupEntry {
+  id: string;
+  fileName: string;
+  fullPath: string;
+  folder: 'mssql' | 'accounts_secure';
+  dateLabel: string;
+  typeLabel: string;
+  stateSnapshot?: ErpState;
+}
+
+const DEFAULT_ACCOUNTS_SECURE_FILES: SavedBackupEntry[] = [
+  {
+    id: 'def-1',
+    fileName: 'dbBillEAccount نظام فارغBackup2026-11-4-23-9.bak',
+    fullPath: 'D:\\Accounts_Secure\\backup\\dbBillEAccount نظام فارغBackup2026-11-4-23-9.bak',
+    folder: 'accounts_secure',
+    dateLabel: '٢٠٢٦/١١/٠٤ ١١:١٠ PM',
+    typeLabel: 'BAK File',
+  },
+  {
+    id: 'def-2',
+    fileName: 'dbBillEAccountBackup2026-11-12-6-10-59.bak',
+    fullPath: 'D:\\Accounts_Secure\\backup\\dbBillEAccountBackup2026-11-12-6-10-59.bak',
+    folder: 'accounts_secure',
+    dateLabel: '٢٠٢٦/١١/١٣ ٠٦:١١ AM',
+    typeLabel: 'BAK File',
+  },
+  {
+    id: 'def-3',
+    fileName: 'dbBillEAccountBackup2026-11-11-2-53-36.bak',
+    fullPath: 'D:\\Accounts_Secure\\backup\\dbBillEAccountBackup2026-11-11-2-53-36.bak',
+    folder: 'accounts_secure',
+    dateLabel: '٢٠٢٦/١١/١١ ٠٢:٥٣ AM',
+    typeLabel: 'BAK File',
+  },
+  {
+    id: 'def-4',
+    fileName: 'dbBillEAccountBackup2026-11-10-3-42-47.bak',
+    fullPath: 'D:\\Accounts_Secure\\backup\\dbBillEAccountBackup2026-11-10-3-42-47.bak',
+    folder: 'accounts_secure',
+    dateLabel: '٢٠٢٦/١١/١٠ ٠٣:٤٦ AM',
+    typeLabel: 'BAK File',
+  },
+  {
+    id: 'def-5',
+    fileName: 'dbBillEAccountBackup2026-11-4-20-37-28.bak',
+    fullPath: 'D:\\Accounts_Secure\\backup\\dbBillEAccountBackup2026-11-4-20-37-28.bak',
+    folder: 'accounts_secure',
+    dateLabel: '٢٠٢٦/١١/٠٤ ٠٨:٣٧ PM',
+    typeLabel: 'BAK File',
+  },
+];
+
+const DEFAULT_MSSQL_FILES: SavedBackupEntry[] = [
+  {
+    id: 'ms-1',
+    fileName: 'dbBillEAccountUP.BAK',
+    fullPath: 'C:\\Program Files\\Microsoft SQL Server\\MSSQL12.MSSQLSERVER\\MSSQL\\Backup\\dbBillEAccountUP.BAK',
+    folder: 'mssql',
+    dateLabel: '٢٠٢٦/١٠/٣٠ ٠٣:٠٩ AM',
+    typeLabel: 'BAK File',
+  },
+  {
+    id: 'ms-2',
+    fileName: 'masterup.bak',
+    fullPath: 'C:\\Program Files\\Microsoft SQL Server\\MSSQL12.MSSQLSERVER\\MSSQL\\Backup\\masterup.bak',
+    folder: 'mssql',
+    dateLabel: '٢٠٢٦/١٠/٢٩ ٠٢:٣١ AM',
+    typeLabel: 'BAK File',
+  },
+  {
+    id: 'ms-3',
+    fileName: 'modelup.bak',
+    fullPath: 'C:\\Program Files\\Microsoft SQL Server\\MSSQL12.MSSQLSERVER\\MSSQL\\Backup\\modelup.bak',
+    folder: 'mssql',
+    dateLabel: '٢٠٢٦/١٠/٢٩ ٠٢:٣٣ AM',
+    typeLabel: 'BAK File',
+  },
+  {
+    id: 'ms-4',
+    fileName: 'msdbup.bak',
+    fullPath: 'C:\\Program Files\\Microsoft SQL Server\\MSSQL12.MSSQLSERVER\\MSSQL\\Backup\\msdbup.bak',
+    folder: 'mssql',
+    dateLabel: '٢٠٢٦/١٠/٢٩ ٠٢:٣٣ AM',
+    typeLabel: 'BAK File',
+  },
+];
+
+function loadBackupHistory(): SavedBackupEntry[] {
+  try {
+    const raw = localStorage.getItem(BACKUP_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveBackupHistory(entries: SavedBackupEntry[]) {
+  try {
+    localStorage.setItem(BACKUP_HISTORY_KEY, JSON.stringify(entries.slice(0, 15)));
+  } catch {
+    // ignore storage limits
+  }
+}
+
+function makeDefaultBackupFilePath(dbName: string, folder: 'mssql' | 'accounts_secure'): string {
+  const now = new Date();
+  const stamp = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}-${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}`;
+  const base =
+    folder === 'mssql'
+      ? 'C:\\Program Files\\Microsoft SQL Server\\MSSQL12.MSSQLSERVER\\MSSQL\\Backup'
+      : 'D:\\Accounts_Secure\\backup';
+  return `${base}\\${dbName || 'dbBillEAccount'}Backup${stamp}.bak`;
+}
 
 interface BackupRestoreDialogProps {
   open: boolean;
   mode: 'backup' | 'restore';
   zIndex: number;
   propsState: GeneralPropsState;
+  currentState?: ErpState;
   onFocus: () => void;
   onClose: () => void;
   onExecuteBackup: (opts: {
@@ -30,6 +149,7 @@ export const BackupRestoreDialog: React.FC<BackupRestoreDialogProps> = ({
   mode,
   zIndex,
   propsState,
+  currentState,
   onFocus,
   onClose,
   onExecuteBackup,
@@ -46,8 +166,14 @@ export const BackupRestoreDialog: React.FC<BackupRestoreDialogProps> = ({
   const [dbName, setDbName] = useState(propsState.dbName || 'dbBillEAccount');
   const [dbEditable, setDbEditable] = useState(false);
   const [locationPath, setLocationPath] = useState('');
-  const [browseOpen, setBrowseOpen] = useState(false);
+  const [explorerOpen, setExplorerOpen] = useState(false);
+  const [explorerFolder, setExplorerFolder] = useState<'mssql' | 'accounts_secure'>('mssql');
+  const [explorerSearch, setExplorerSearch] = useState('');
+  const [explorerFileInput, setExplorerFileInput] = useState('');
+  const [selectedEntryId, setSelectedEntryId] = useState<string>('');
+  const [history, setHistory] = useState<SavedBackupEntry[]>(() => loadBackupHistory());
   const [pendingRestoreFile, setPendingRestoreFile] = useState<File | null>(null);
+  const [pendingSnapshot, setPendingSnapshot] = useState<ErpState | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -59,22 +185,98 @@ export const BackupRestoreDialog: React.FC<BackupRestoreDialogProps> = ({
       setDbEditable(false);
       setUsername('');
       setPassword('');
-      setLocationPath(mode === 'backup' ? '' : '');
+      setLocationPath('');
       setPendingRestoreFile(null);
+      setPendingSnapshot(null);
+      setExplorerOpen(false);
+      setHistory(loadBackupHistory());
     }
   }, [open, mode, propsState]);
 
+  const activeFolderEntries = useMemo(() => {
+    const defaults =
+      explorerFolder === 'mssql' ? DEFAULT_MSSQL_FILES : DEFAULT_ACCOUNTS_SECURE_FILES;
+    const saved = history.filter((h) => h.folder === explorerFolder);
+    const all = [...saved, ...defaults];
+    const q = explorerSearch.trim().toLowerCase();
+    if (!q) return all;
+    return all.filter((e) => e.fileName.toLowerCase().includes(q));
+  }, [explorerFolder, history, explorerSearch]);
+
   const handleBrowse = () => {
+    const initialFolder: 'mssql' | 'accounts_secure' =
+      mode === 'backup' ? 'mssql' : 'accounts_secure';
+    setExplorerFolder(initialFolder);
+    setExplorerSearch('');
+    setSelectedEntryId('');
+    setExplorerFileInput(
+      mode === 'backup'
+        ? makeDefaultBackupFilePath(dbName, initialFolder)
+        : locationPath || ''
+    );
+    setExplorerOpen(true);
+  };
+
+  const handleExplorerConfirm = () => {
     if (mode === 'backup') {
-      setBrowseOpen(true);
-    } else {
-      fileInputRef.current?.click();
+      const chosen =
+        explorerFileInput.trim() || makeDefaultBackupFilePath(dbName, explorerFolder);
+      setLocationPath(chosen);
+      setExplorerOpen(false);
+      return;
     }
+
+    const picked = activeFolderEntries.find((e) => e.id === selectedEntryId);
+    if (picked) {
+      setLocationPath(picked.fullPath);
+      if (picked.stateSnapshot) {
+        setPendingSnapshot(picked.stateSnapshot);
+        setPendingRestoreFile(null);
+      } else if (currentState) {
+        setPendingSnapshot(currentState);
+        setPendingRestoreFile(null);
+      }
+      setExplorerOpen(false);
+      return;
+    }
+
+    if (explorerFileInput.trim()) {
+      setLocationPath(explorerFileInput.trim());
+      if (currentState && !pendingRestoreFile) {
+        setPendingSnapshot(currentState);
+      }
+      setExplorerOpen(false);
+      return;
+    }
+
+    void onShowMsg({
+      title: 'Open',
+      icon: 'info',
+      text: 'اختر ملف نسخة احتياطية أو اختر ملفاً من جهازك.',
+    });
   };
 
   const handleConfirm = async () => {
     if (mode === 'backup') {
-      const targetPath = locationPath.trim() || propsState.backupPath || 'D:\\Accounts_Secure\\backup';
+      const targetPath =
+        locationPath.trim() || makeDefaultBackupFilePath(dbName, 'mssql');
+      const parts = targetPath.split('\\');
+      const fileName = parts[parts.length - 1] || `${dbName}Backup.bak`;
+      const newEntry: SavedBackupEntry = {
+        id: `snap-${Date.now()}`,
+        fileName,
+        fullPath: targetPath,
+        folder: targetPath.toLowerCase().includes('accounts_secure')
+          ? 'accounts_secure'
+          : 'mssql',
+        dateLabel: new Date().toLocaleString('ar-EG'),
+        typeLabel: 'BAK File',
+        stateSnapshot: currentState,
+      };
+      const updated = [newEntry, ...history];
+      setHistory(updated);
+      saveBackupHistory(updated);
+
       onExecuteBackup({
         serverName: serverName.trim() || 'DESKTOP-RNJ1CCU',
         dbName: dbName.trim() || 'dbBillEAccount',
@@ -86,30 +288,36 @@ export const BackupRestoreDialog: React.FC<BackupRestoreDialogProps> = ({
     }
 
     // Restore mode
-    if (!pendingRestoreFile) {
-      await onShowMsg({
-        title: 'استرجاع نسخة احتياطية',
-        icon: 'warn',
-        text: 'يرجى تحديد ملف النسخة الاحتياطية أولاً عبر زر (......).',
-      });
+    if (pendingRestoreFile) {
+      try {
+        const text = await pendingRestoreFile.text();
+        const parsed = JSON.parse(text) as ErpState;
+        if (!parsed.props || !Array.isArray(parsed.users)) {
+          throw new Error('Invalid backup');
+        }
+        onExecuteRestore(parsed);
+        onClose();
+      } catch {
+        await onShowMsg({
+          title: 'استرجاع نسخة احتياطية',
+          icon: 'warn',
+          text: 'تعذر قراءة ملف النسخة الاحتياطية المحدد.',
+        });
+      }
       return;
     }
 
-    try {
-      const text = await pendingRestoreFile.text();
-      const parsed = JSON.parse(text) as ErpState;
-      if (!parsed.props || !Array.isArray(parsed.users)) {
-        throw new Error('Invalid backup');
-      }
-      onExecuteRestore(parsed);
+    if (pendingSnapshot) {
+      onExecuteRestore(pendingSnapshot);
       onClose();
-    } catch {
-      await onShowMsg({
-        title: 'استرجاع نسخة احتياطية',
-        icon: 'warn',
-        text: 'تعذر قراءة ملف النسخة الاحتياطية المحدد.',
-      });
+      return;
     }
+
+    await onShowMsg({
+      title: 'استرجاع نسخة احتياطية',
+      icon: 'warn',
+      text: 'يرجى تحديد ملف النسخة الاحتياطية أولاً عبر زر (......).',
+    });
   };
 
   const title = mode === 'backup' ? 'عمل نسخة احتياطية' : 'استرجاع نسخة احتياطية';
@@ -120,18 +328,18 @@ export const BackupRestoreDialog: React.FC<BackupRestoreDialogProps> = ({
         open={open}
         title={title}
         width={520}
-        height={320}
+        height={325}
         zIndex={zIndex}
         onFocus={onFocus}
         onClose={onClose}
       >
-        <div className="flex-1 flex flex-col justify-between bg-[#f0f0f0] p-3">
-          <fieldset className="border border-[#c5c5c5] p-3 flex flex-col gap-2.5 bg-[#f4f4f4]">
+        <div className="flex-1 flex flex-col justify-between bg-[#f0f0f0] px-3 py-2.5">
+          <fieldset className="border border-[#d2d2d2] px-3 py-2.5 flex flex-col gap-2 bg-[#f0f0f0]">
             <legend className="px-1.5 text-[12px] font-bold">خيارات</legend>
 
             {/* اسم السيرفر */}
             <div className="flex items-center gap-2">
-              <label className="w-[100px] text-[13px] font-semibold">اسم السيرفر</label>
+              <label className="w-[100px] text-[13px] font-bold text-right">اسم السيرفر</label>
               {serverEditable ? (
                 <input
                   value={serverName}
@@ -144,8 +352,8 @@ export const BackupRestoreDialog: React.FC<BackupRestoreDialogProps> = ({
                   value={serverName}
                   onChange={(e) => setServerName(e.target.value)}
                   disabled
-                  className="erp-field flex-1 bg-[#d8d8d8] text-[#555] text-left"
-                  dir="ltr"
+                  className="erp-field flex-1 bg-[#d8d8d8] text-[#555] text-left font-semibold"
+                  dir="rtl"
                 >
                   <option value={serverName}>{serverName}</option>
                 </select>
@@ -153,7 +361,7 @@ export const BackupRestoreDialog: React.FC<BackupRestoreDialogProps> = ({
               <button
                 type="button"
                 onClick={() => setServerEditable((v) => !v)}
-                className="erp-classic-btn w-[64px] h-[25px] text-[12px]"
+                className="erp-classic-btn w-[68px] h-[24px] text-[12px]"
               >
                 تبديل
               </button>
@@ -161,19 +369,19 @@ export const BackupRestoreDialog: React.FC<BackupRestoreDialogProps> = ({
 
             {/* اسم المستخدم */}
             <div className="flex items-center gap-2">
-              <label className="w-[100px] text-[13px] font-semibold">اسم المستخدم</label>
+              <label className="w-[100px] text-[13px] font-bold text-right">اسم المستخدم</label>
               <input
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={integratedSecurity}
                 className="erp-field flex-1 disabled:bg-[#e2e2e2]"
               />
-              <div className="w-[64px]" />
+              <div className="w-[68px]" />
             </div>
 
             {/* كلمة المرور */}
             <div className="flex items-center gap-2">
-              <label className="w-[100px] text-[13px] font-semibold">كلمة المرور</label>
+              <label className="w-[100px] text-[13px] font-bold text-right">كلمة المرور</label>
               <input
                 type="password"
                 value={password}
@@ -181,25 +389,25 @@ export const BackupRestoreDialog: React.FC<BackupRestoreDialogProps> = ({
                 disabled={integratedSecurity}
                 className="erp-field flex-1 disabled:bg-[#e2e2e2]"
               />
-              <div className="w-[64px]" />
+              <div className="w-[68px]" />
             </div>
 
             {/* Integrated Security */}
-            <div className="flex items-center justify-center py-0.5">
-              <label className="flex items-center gap-2 cursor-pointer text-[13px] font-semibold">
-                <span dir="ltr">Integrated Security</span>
+            <div className="flex items-center justify-center py-0.5 pr-12">
+              <label className="flex items-center gap-2 cursor-pointer text-[13px] font-bold">
                 <input
                   type="checkbox"
                   checked={integratedSecurity}
                   onChange={(e) => setIntegratedSecurity(e.target.checked)}
                   className="w-4 h-4 accent-[#0078d7]"
                 />
+                <span dir="ltr">Integrated Security</span>
               </label>
             </div>
 
             {/* قاعدة البيانات */}
             <div className="flex items-center gap-2">
-              <label className="w-[100px] text-[13px] font-semibold">قاعدة البيانات</label>
+              <label className="w-[100px] text-[13px] font-bold text-right">قاعدة البيانات</label>
               {dbEditable ? (
                 <input
                   value={dbName}
@@ -212,8 +420,8 @@ export const BackupRestoreDialog: React.FC<BackupRestoreDialogProps> = ({
                   value={dbName}
                   onChange={(e) => setDbName(e.target.value)}
                   disabled
-                  className="erp-field flex-1 bg-[#d8d8d8] text-[#555] text-left"
-                  dir="ltr"
+                  className="erp-field flex-1 bg-[#c8c8c8] text-[#555] text-left font-semibold"
+                  dir="rtl"
                 >
                   <option value={dbName}>{dbName}</option>
                 </select>
@@ -221,7 +429,7 @@ export const BackupRestoreDialog: React.FC<BackupRestoreDialogProps> = ({
               <button
                 type="button"
                 onClick={() => setDbEditable((v) => !v)}
-                className="erp-classic-btn focused w-[64px] h-[25px] text-[12px]"
+                className="erp-classic-btn w-[68px] h-[24px] text-[12px]"
               >
                 تبديل
               </button>
@@ -229,49 +437,51 @@ export const BackupRestoreDialog: React.FC<BackupRestoreDialogProps> = ({
 
             {/* الموقع */}
             <div className="flex items-center gap-2">
-              <label className="w-[100px] text-[13px] font-semibold">الموقع</label>
+              <label className="w-[100px] text-[13px] font-bold text-right">الموقع</label>
               <input
                 value={locationPath}
                 onChange={(e) => setLocationPath(e.target.value)}
-                placeholder={mode === 'backup' ? propsState.backupPath : 'اختر ملف النسخة (.json)'}
-                className="erp-field flex-1 text-left"
+                className="erp-field flex-1 bg-[#e4e4e4] text-left"
                 dir="ltr"
               />
               <button
                 type="button"
                 onClick={handleBrowse}
-                className="erp-classic-btn w-[40px] h-[25px] text-[12px]"
+                className="erp-classic-btn focused w-[44px] h-[24px] text-[12px]"
               >
                 ......
               </button>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".json"
+                accept=".json,.bak"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0] || null;
                   setPendingRestoreFile(file);
+                  setPendingSnapshot(null);
                   if (file) {
                     setLocationPath(file.name);
+                    setExplorerFileInput(file.name);
+                    setExplorerOpen(false);
                   }
                 }}
               />
             </div>
           </fieldset>
 
-          <div className="flex items-center justify-center gap-8 pt-2">
+          <div className="flex items-center justify-center gap-16 pt-2 border-t border-[#d8d8d8]">
             <button
               type="button"
               onClick={handleConfirm}
-              className="erp-classic-btn focused w-[120px] h-[28px] text-[13px]"
+              className="erp-classic-btn w-[125px] h-[28px] text-[13px] font-bold"
             >
               موافق
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="erp-classic-btn w-[120px] h-[28px] text-[13px]"
+              className="erp-classic-btn w-[125px] h-[28px] text-[13px] font-bold"
             >
               الغاء الأمر
             </button>
@@ -279,15 +489,186 @@ export const BackupRestoreDialog: React.FC<BackupRestoreDialogProps> = ({
         </div>
       </DraggableWindow>
 
-      <FolderBrowseDialog
-        open={browseOpen}
-        initialPath={locationPath || propsState.backupPath}
-        onCancel={() => setBrowseOpen(false)}
-        onConfirm={(path: string) => {
-          setLocationPath(path);
-          setBrowseOpen(false);
-        }}
-      />
+      {explorerOpen && (
+        <div
+          dir="ltr"
+          className="fixed inset-0 bg-black/35 z-[320] flex items-center justify-center p-4"
+        >
+          <div className="w-[640px] max-w-[96vw] h-[450px] bg-[#1e1e1e] text-[#eee] border border-[#555] shadow-2xl flex flex-col select-none">
+            {/* Dark Explorer Title Bar */}
+            <div className="h-[30px] bg-[#141414] px-3 flex items-center justify-between text-[12px] border-b border-[#333]">
+              <div className="flex items-center gap-2 font-semibold">
+                <span className="text-[#ffd257]">📁</span>
+                <span>{mode === 'backup' ? 'Save As' : 'Open'}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExplorerOpen(false)}
+                className="w-7 h-6 flex items-center justify-center hover:bg-[#e81123] text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Address & Search Bar */}
+            <div className="h-[34px] bg-[#252526] border-b border-[#3a3a3a] px-2 flex items-center gap-2 text-[12px]">
+              <div className="flex-1 h-[24px] bg-[#1b1b1b] border border-[#444] px-2 flex items-center gap-1.5 text-[#ddd] truncate">
+                <span>📁</span>
+                <span>
+                  {explorerFolder === 'mssql'
+                    ? '« MSSQL > Backup'
+                    : '« Accounts_Secure > backup'}
+                </span>
+              </div>
+              <input
+                value={explorerSearch}
+                onChange={(e) => setExplorerSearch(e.target.value)}
+                placeholder={
+                  explorerFolder === 'mssql' ? 'Search Backup' : 'Search backup'
+                }
+                className="w-[170px] h-[24px] bg-[#1b1b1b] border border-[#444] px-2 text-[12px] text-white outline-none focus:border-[#0078d7]"
+              />
+            </div>
+
+            {/* Explorer Toolbar */}
+            <div className="h-[28px] bg-[#2b2b2b] border-b border-[#3a3a3a] px-3 flex items-center justify-between text-[11px] text-[#ccc]">
+              <div className="flex items-center gap-4">
+                <span>Organize ▾</span>
+                <span>New folder</span>
+              </div>
+              {mode === 'restore' && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-2 py-0.5 bg-[#0078d7] hover:bg-[#198ae3] text-white text-[11px] cursor-pointer"
+                >
+                  استعراض ملف من الجهاز (.json)...
+                </button>
+              )}
+            </div>
+
+            {/* Explorer Main Split */}
+            <div className="flex-1 flex min-h-0">
+              {/* Left Navigation Pane */}
+              <div className="w-[155px] bg-[#1c1c1c] border-r border-[#333] p-1.5 flex flex-col gap-0.5 text-[12px] overflow-y-auto">
+                <div className="px-2 py-1 text-[#aaa] font-semibold">This PC</div>
+                <button
+                  type="button"
+                  onClick={() => setExplorerFolder('mssql')}
+                  className={`text-left px-3 py-1 flex items-center gap-1.5 cursor-pointer ${
+                    explorerFolder === 'mssql' ? 'bg-[#37373d] text-white' : 'hover:bg-[#2a2d2e]'
+                  }`}
+                >
+                  <span>💽</span>
+                  <span className="truncate">Local Disk (C:)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExplorerFolder('accounts_secure')}
+                  className={`text-left px-3 py-1 flex items-center gap-1.5 cursor-pointer ${
+                    explorerFolder === 'accounts_secure'
+                      ? 'bg-[#37373d] text-white'
+                      : 'hover:bg-[#2a2d2e]'
+                  }`}
+                >
+                  <span>📁</span>
+                  <span className="truncate">Accounts_Secure</span>
+                </button>
+              </div>
+
+              {/* Right File List */}
+              <div className="flex-1 bg-[#1e1e1e] overflow-y-auto">
+                <table className="w-full border-collapse text-[12px]">
+                  <thead className="bg-[#252526] border-b border-[#383838] text-[#bbb] sticky top-0">
+                    <tr>
+                      <th className="py-1 px-2 text-left font-normal">Name</th>
+                      <th className="py-1 px-2 text-left font-normal w-[140px]">Date modified</th>
+                      <th className="py-1 px-2 text-left font-normal w-[75px]">Type</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeFolderEntries.map((entry) => {
+                      const isSel = selectedEntryId === entry.id;
+                      return (
+                        <tr
+                          key={entry.id}
+                          onClick={() => {
+                            setSelectedEntryId(entry.id);
+                            setExplorerFileInput(entry.fullPath);
+                          }}
+                          onDoubleClick={() => {
+                            setSelectedEntryId(entry.id);
+                            setExplorerFileInput(entry.fullPath);
+                            if (mode === 'backup') {
+                              setLocationPath(entry.fullPath);
+                              setExplorerOpen(false);
+                            } else {
+                              setLocationPath(entry.fullPath);
+                              setPendingSnapshot(entry.stateSnapshot || currentState || null);
+                              setPendingRestoreFile(null);
+                              setExplorerOpen(false);
+                            }
+                          }}
+                          className={`cursor-pointer ${
+                            isSel ? 'bg-[#0078d7] text-white' : 'hover:bg-[#2d2d30] text-[#e6e6e6]'
+                          }`}
+                        >
+                          <td className="py-1 px-2 truncate max-w-[230px]">
+                            <span className="mr-1.5">📄</span>
+                            {entry.fileName}
+                          </td>
+                          <td className="py-1 px-2 text-[#bbb]">{entry.dateLabel}</td>
+                          <td className="py-1 px-2 text-[#bbb]">{entry.typeLabel}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Bottom File Name & Save/Open Buttons */}
+            <div className="bg-[#252526] border-t border-[#3a3a3a] px-3 py-2 flex flex-col gap-2 text-[12px]">
+              <div className="flex items-center gap-2">
+                <label className="w-[80px] text-right text-[#ccc]">File name:</label>
+                <input
+                  value={explorerFileInput}
+                  onChange={(e) => setExplorerFileInput(e.target.value)}
+                  className="flex-1 h-[24px] bg-[#1b1b1b] border border-[#0078d7] px-2 text-white outline-none"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-1">
+                  {mode === 'backup' && (
+                    <>
+                      <label className="w-[80px] text-right text-[#ccc]">Save as type:</label>
+                      <select className="flex-1 h-[24px] bg-[#1b1b1b] border border-[#444] px-2 text-[#ddd] outline-none">
+                        <option>Backup Files (*.bak; *.json)</option>
+                      </select>
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleExplorerConfirm}
+                    className="w-[84px] h-[24px] bg-[#333] hover:bg-[#444] border border-[#777] text-white cursor-pointer"
+                  >
+                    {mode === 'backup' ? 'Save' : 'Open'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExplorerOpen(false)}
+                    className="w-[84px] h-[24px] bg-[#333] hover:bg-[#444] border border-[#555] text-white cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

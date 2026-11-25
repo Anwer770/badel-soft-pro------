@@ -4,6 +4,7 @@ import type { SectionKey } from '../types/erp';
 
 interface MenuAndToolbarProps {
   activeSection: SectionKey;
+  panelOpen: boolean;
   showMenus: boolean;
   showTiles: boolean;
   onSelectSection: (section: SectionKey) => void;
@@ -12,6 +13,7 @@ interface MenuAndToolbarProps {
 
 export const MenuAndToolbar: React.FC<MenuAndToolbarProps> = ({
   activeSection,
+  panelOpen,
   showMenus,
   showTiles,
   onSelectSection,
@@ -78,7 +80,7 @@ export const MenuAndToolbar: React.FC<MenuAndToolbarProps> = ({
                 className={`px-3 py-1 text-[16px] font-bold text-[#111] whitespace-nowrap border cursor-pointer transition-colors ${
                   isOpen
                     ? 'bg-white border-[#889] shadow-xs'
-                    : activeSection === sec.title
+                    : panelOpen && activeSection === sec.title
                     ? 'bg-[#dde7f7] border-[#9bb7dc]'
                     : 'border-transparent hover:bg-[#e5f3ff] hover:border-[#99d1ff]'
                 }`}
@@ -128,7 +130,7 @@ export const MenuAndToolbar: React.FC<MenuAndToolbarProps> = ({
             className="flex-1 flex items-stretch overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {MENU_SECTIONS.map((sec) => {
-              const isActive = activeSection === sec.title;
+              const isActive = panelOpen && activeSection === sec.title;
               return (
                 <button
                   key={sec.title}
