@@ -1,35 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { DraggableWindow } from './DraggableWindow';
-import type { GeneralPropsState } from '../types/erp';
+import type {
+  DesignerColKey,
+  DesignerRow,
+  DesignerSectionData,
+  GeneralPropsState,
+} from '../types/erp';
 
-export type DesignerColKey =
-  | 'attachBeforeR'
-  | 'attachAfterR'
-  | 'mmR'
-  | 'right'
-  | 'center'
-  | 'left'
-  | 'mmL'
-  | 'attachBeforeL'
-  | 'attachAfterL';
-
-export interface DesignerRow {
-  id: string;
-  attachBeforeR: string;
-  attachAfterR: string;
-  mmR: string;
-  right: string;
-  center: string;
-  left: string;
-  mmL: string;
-  attachBeforeL: string;
-  attachAfterL: string;
-}
-
-export interface DesignerSectionData {
-  rows: DesignerRow[];
-  font: string;
-}
+export type { DesignerColKey, DesignerRow, DesignerSectionData } from '../types/erp';
 
 const DEFAULT_ROW_COUNT = 12;
 
@@ -143,17 +121,71 @@ const TOKEN_ROWS_2_TO_6: string[][] = [
   ],
 ];
 
-const FONT_OPTIONS = [
-  'Tahoma, 9pt',
-  'Tahoma, 10pt',
-  'Tahoma, 10pt, Bold',
-  'Tahoma, 11pt',
-  'Tahoma, 12pt, Bold',
-  'Tahoma, 14pt, Bold',
-  'Arial, 10pt',
-  'Arial, 12pt, Bold',
-  'Cairo, 11pt',
+const FONT_FAMILIES = [
+  'Times New Roman',
+  'Traditional Arabic',
+  'Trebuchet MS',
+  'Urdu Typesetting',
+  'Verdana',
+  'Tahoma',
+  'Arial',
+  'Cairo',
 ];
+const FONT_STYLES = ['Regular', 'Italic', 'Bold', 'Bold Italic'] as const;
+const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36];
+const FONT_COLORS = ['Black', 'Red', 'Blue', 'Green'];
+const FONT_SCRIPTS = ['Western', 'Arabic'] as const;
+
+type FontStyleName = (typeof FONT_STYLES)[number];
+
+interface FontDraft {
+  family: string;
+  style: FontStyleName;
+  size: number;
+  strikeout: boolean;
+  underline: boolean;
+  color: string;
+  script: 'Western' | 'Arabic';
+}
+
+function parseFontString(value: string): FontDraft {
+  const parts = String(value || '').split(',').map((p) => p.trim());
+  const family = FONT_FAMILIES.find((f) => parts.some((p) => p.toLowerCase() === f.toLowerCase()))
+    || parts[0]
+    || 'Times New Roman';
+  const sizePart = parts.find((p) => /^\d+\s*pt$/i.test(p));
+  const size = sizePart ? Number(sizePart.replace(/[^0-9]/g, '')) || 11 : 11;
+  const hasBold = parts.some((p) => p.toLowerCase() === 'bold');
+  const hasItalic = parts.some((p) => p.toLowerCase() === 'italic');
+  const style: FontStyleName = hasBold && hasItalic
+    ? 'Bold Italic'
+    : hasBold
+      ? 'Bold'
+      : hasItalic
+        ? 'Italic'
+        : 'Regular';
+  return {
+    family,
+    style,
+    size,
+    strikeout: false,
+    underline: false,
+    color: 'Black',
+    script: 'Western',
+  };
+}
+
+function fontDraftToString(draft: FontDraft): string {
+  const styleSuffix =
+    draft.style === 'Bold'
+      ? ', Bold'
+      : draft.style === 'Italic'
+        ? ', Italic'
+        : draft.style === 'Bold Italic'
+          ? ', Bold Italic'
+          : '';
+  return `${draft.family}, ${draft.size}pt${styleSuffix}`;
+}
 
 interface HeaderFooterDesignerDialogProps {
   open: boolean;
@@ -185,6 +217,7 @@ export const HeaderFooterDesignerDialog: React.FC<HeaderFooterDesignerDialogProp
   const [editingCell, setEditingCell] = useState<{ rowIdx: number; colKey: DesignerColKey } | null>(null);
   const [allowMultiple, setAllowMultiple] = useState(false);
   const [showFontModal, setShowFontModal] = useState(false);
+  const [fontDraft, setFontDraft] = useState<FontDraft>(() => parseFontString(initialData.font || 'Tahoma, 10pt'));
   const [showFixedTextModal, setShowFixedTextModal] = useState(false);
   const [fixedTextDraft, setFixedTextDraft] = useState('');
 
@@ -195,6 +228,7 @@ export const HeaderFooterDesignerDialog: React.FC<HeaderFooterDesignerDialogProp
       setActiveCell({ rowIdx: 0, colKey: 'attachBeforeR' });
       setEditingCell(null);
       setShowFontModal(false);
+      setFontDraft(parseFontString(initialData.font || 'Tahoma, 10pt'));
       setShowFixedTextModal(false);
       setFixedTextDraft('');
     }
@@ -442,7 +476,10 @@ export const HeaderFooterDesignerDialog: React.FC<HeaderFooterDesignerDialogProp
             </button>
             <button
               type="button"
-              onClick={() => setShowFontModal(true)}
+              onClick={() => {
+                setFontDraft(parseFontString(font));
+                setShowFontModal(true);
+              }}
               className="erp-classic-btn w-[82px] h-[28px] text-[12px]"
             >
               الخط
@@ -509,32 +546,160 @@ export const HeaderFooterDesignerDialog: React.FC<HeaderFooterDesignerDialogProp
           </div>
         )}
 
-        {/* Font Picker Sub-Modal */}
+        {/* Font Picker Sub-Modal (matching Windows Font dialog) */}
         {showFontModal && (
-          <div className="absolute inset-0 bg-black/20 z-30 flex items-center justify-center p-4">
-            <div className="w-[320px] bg-[#f0f0f0] border border-[#666] shadow-xl p-3 flex flex-col gap-3">
-              <div className="font-bold text-[13px] border-b border-[#ccc] pb-1">
-                اختيار خط الترويسة / التذيل
+          <div className="absolute inset-0 bg-black/25 z-30 flex items-center justify-center p-4" dir="ltr">
+            <div className="w-[520px] bg-[#f0f0f0] border border-[#666] shadow-2xl p-3 flex flex-col gap-3 text-[12px] text-[#111]">
+              <div className="font-bold text-[13px] border-b border-[#b5b5b5] pb-1">Font</div>
+
+              <div className="grid grid-cols-[1fr_120px_80px] gap-3">
+                <div className="flex flex-col gap-1">
+                  <span className="font-bold">Font:</span>
+                  <select
+                    size={6}
+                    value={fontDraft.family}
+                    onChange={(e) => setFontDraft((d) => ({ ...d, family: e.target.value }))}
+                    className="bg-white border border-[#7a7a7a] px-1 py-0.5 outline-none h-[112px]"
+                  >
+                    {FONT_FAMILIES.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="font-bold">Font style:</span>
+                  <select
+                    size={4}
+                    value={fontDraft.style}
+                    onChange={(e) =>
+                      setFontDraft((d) => ({ ...d, style: e.target.value as FontStyleName }))
+                    }
+                    className="bg-white border border-[#7a7a7a] px-1 py-0.5 outline-none h-[112px]"
+                  >
+                    {FONT_STYLES.map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="font-bold">Size:</span>
+                  <select
+                    size={6}
+                    value={fontDraft.size}
+                    onChange={(e) =>
+                      setFontDraft((d) => ({ ...d, size: Number(e.target.value) || 11 }))
+                    }
+                    className="bg-white border border-[#7a7a7a] px-1 py-0.5 outline-none h-[112px]"
+                  >
+                    {FONT_SIZES.map((sz) => (
+                      <option key={sz} value={sz}>
+                        {sz}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <select
-                value={font}
-                onChange={(e) => setFont(e.target.value)}
-                className="erp-field bg-white"
-                dir="ltr"
-              >
-                {FONT_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
+
+              <div className="grid grid-cols-[1fr_1fr_90px] gap-3 items-start">
+                <fieldset className="border border-[#b5b5b5] p-2">
+                  <legend className="px-1">Effects</legend>
+                  <label className="flex items-center gap-2 mb-1 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={fontDraft.strikeout}
+                      onChange={(e) =>
+                        setFontDraft((d) => ({ ...d, strikeout: e.target.checked }))
+                      }
+                    />
+                    <span>Strikeout</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={fontDraft.underline}
+                      onChange={(e) =>
+                        setFontDraft((d) => ({ ...d, underline: e.target.checked }))
+                      }
+                    />
+                    <span>Underline</span>
+                  </label>
+                </fieldset>
+
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold w-[38px]">Color:</span>
+                    <select
+                      value={fontDraft.color}
+                      onChange={(e) => setFontDraft((d) => ({ ...d, color: e.target.value }))}
+                      className="bg-white border border-[#7a7a7a] px-1 h-[24px] flex-1 outline-none"
+                    >
+                      {FONT_COLORS.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold w-[38px]">Script:</span>
+                    <select
+                      value={fontDraft.script}
+                      onChange={(e) =>
+                        setFontDraft((d) => ({
+                          ...d,
+                          script: e.target.value as 'Western' | 'Arabic',
+                        }))
+                      }
+                      className="bg-white border border-[#7a7a7a] px-1 h-[24px] flex-1 outline-none"
+                    >
+                      {FONT_SCRIPTS.map((sc) => (
+                        <option key={sc} value={sc}>
+                          {sc}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="border border-[#7a7a7a] bg-white h-[74px] flex items-center justify-center">
+                  <span
+                    style={{
+                      fontFamily: fontDraft.family,
+                      fontSize: `${Math.min(fontDraft.size + 6, 26)}px`,
+                      fontWeight: fontDraft.style.includes('Bold') ? 'bold' : 'normal',
+                      fontStyle: fontDraft.style.includes('Italic') ? 'italic' : 'normal',
+                      textDecoration: `${fontDraft.underline ? 'underline ' : ''}${
+                        fontDraft.strikeout ? 'line-through' : ''
+                      }`.trim() || 'none',
+                      color: fontDraft.color.toLowerCase(),
+                    }}
+                  >
+                    AaBbYyZz
+                  </span>
+                </div>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowFontModal(false)}
-                  className="erp-classic-btn focused px-4 h-[26px] text-[12px]"
+                  onClick={() => {
+                    setFont(fontDraftToString(fontDraft));
+                    setShowFontModal(false);
+                  }}
+                  className="erp-classic-btn focused px-6 h-[26px] text-[12px]"
                 >
-                  موافق
+                  OK
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowFontModal(false)}
+                  className="erp-classic-btn px-5 h-[26px] text-[12px]"
+                >
+                  Cancel
                 </button>
               </div>
             </div>
@@ -547,17 +712,18 @@ export const HeaderFooterDesignerDialog: React.FC<HeaderFooterDesignerDialogProp
 
 export const renderDesignerTokenPreview = (
   rawText: string,
-  propsState: GeneralPropsState,
+  propsState: GeneralPropsState | undefined,
   reportType: string,
   attachBefore = '',
-  attachAfter = ''
+  attachAfter = '',
+  overrides?: Record<string, string>
 ): React.ReactNode => {
   if (!rawText) return null;
   const trimmed = rawText.trim();
   if (trimmed === '[الشعار]') {
-    return propsState.logoData ? (
+    return propsState?.logoData ? (
       <img
-        src={propsState.logoData}
+        src={propsState?.logoData}
         alt="الشعار"
         referrerPolicy="no-referrer"
         className="h-14 w-auto object-contain inline-block"
@@ -577,11 +743,11 @@ export const renderDesignerTokenPreview = (
   }
 
   const tokenMap: Record<string, string> = {
-    '[إسم الشركة]': propsState.hdrArName || propsState.company || 'بديل سوفت',
-    '[العنوان عربي]': propsState.hdrArAddr || 'صنعاء - الجمهورية اليمنية',
-    '[التلفون عربي]': propsState.hdrArTel || '771337032',
-    '[العنوان أجنبي]': propsState.hdrEnAddr || 'Sanaa - Yemen',
-    '[التلفون أجنبي]': propsState.hdrEnTel || '0562998713',
+    '[إسم الشركة]': propsState?.hdrArName || propsState?.company || 'بديل سوفت',
+    '[العنوان عربي]': propsState?.hdrArAddr || 'صنعاء - الجمهورية اليمنية',
+    '[التلفون عربي]': propsState?.hdrArTel || '771337032',
+    '[العنوان أجنبي]': propsState?.hdrEnAddr || 'Sanaa - Yemen',
+    '[التلفون أجنبي]': propsState?.hdrEnTel || '0562998713',
     '[الرقم الضريبي]': '300123456700003',
     '[التاريخ]': '2026/11/24',
     '[الوقت]': '01:04 ص',
@@ -592,9 +758,22 @@ export const renderDesignerTokenPreview = (
     '[من تاريخ]': '2026/01/01',
     '[إلى تاريخ]': '2026/11/24',
     '[العملة]': 'ريال يمني',
+    '[اسم العميل]': 'عميل نقدي',
+    '[رقم الفاتورة]': '—',
+    '[نوع الفاتورة]': 'فاتورة',
+    '[نوع الدفع]': 'نقد',
+    '[الإجمالي]': '0',
+    '[الصافي]': '0',
+    '[المجموع]': '0',
+    '[إجمالي الكمية]': '0',
+    '[البيان]': '',
   };
 
   let resolved = trimmed;
+  // Real document values win over the designer's placeholder defaults
+  Object.entries(overrides || {}).forEach(([tok, val]) => {
+    resolved = resolved.split(tok).join(val);
+  });
   Object.entries(tokenMap).forEach(([tok, val]) => {
     resolved = resolved.split(tok).join(val);
   });

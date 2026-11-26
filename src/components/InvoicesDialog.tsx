@@ -3,9 +3,12 @@ import { createDefaultInvoiceTemplate } from '../data/erpDefaults';
 import type {
   CostCenterRecord,
   CurrencyItem,
+  DesignerSectionData,
+  DesignerSectionsState,
   CustomAccountRecord,
   EmployeeRecord,
   ErpUser,
+  GeneralPropsState,
   ImportedMaterialItem,
   InvoiceLineItem,
   InvoiceRecord,
@@ -17,6 +20,16 @@ import type {
 } from '../types/erp';
 import { DraggableWindow } from './DraggableWindow';
 import { InvoiceTemplatesPickerDialog } from './InvoiceTemplateDialogs';
+import { renderDesignerTokenPreview } from './HeaderFooterDesignerDialog';
+import { amountToArabicWords } from '../utils/arabicNumberToWords';
+
+const designerFontStyle = (font?: string): React.CSSProperties => {
+  if (!font) return {};
+  const family = (font.split(',')[0] || 'Tahoma').trim();
+  const sizeMatch = font.match(/(\d+(?:\.\d+)?)\s*pt/);
+  const size = sizeMatch ? `${(parseFloat(sizeMatch[1]) * 1.333).toFixed(1)}px` : '11px';
+  return { fontFamily: `${family}, Tahoma, sans-serif`, fontSize: size };
+};
 
 export interface InvoicesModalLaunch {
   mode: 'editor' | 'browse' | 'profit';
@@ -39,6 +52,8 @@ interface InvoicesDialogProps {
   warehouses: WarehouseRecord[];
   currencies: CurrencyItem[];
   reportTemplates?: ReportTemplateItem[];
+  designerSections?: DesignerSectionsState;
+  companyProps?: GeneralPropsState;
   onFocus: () => void;
   onClose: () => void;
   onSaveInvoice: (inv: InvoiceRecord) => void;
@@ -64,6 +79,7 @@ function makeEmptyLine(idx: number): InvoiceLineItem {
     discPct: 0,
     discount: 0,
     expiryDate: '',
+    warehouse: '',
   };
 }
 
@@ -86,6 +102,37 @@ function shortWindowTitle(kindTitle: string): string {
   if (kindTitle.includes('عرض أسعار')) return 'عرض أسعار';
   return kindTitle;
 }
+
+const fmtAmt = (v: number): string =>
+  Number.isFinite(v) ? v.toFixed(2).replace(/\.?0+$/, '') || '0' : '0';
+
+const BAR_BTN =
+  'border border-[#666] bg-[#e9edf4] hover:brightness-95 h-[28px] font-bold cursor-pointer';
+const BAR_BTN_SALES =
+  'border border-[#666] bg-[#dfe4f7] hover:bg-[#c9d5f3] h-[30px] font-bold cursor-pointer';
+
+const KIND_MENU_ITEMS: { label: string; kind?: string }[] = [
+  { label: 'فاتورة مشتريات', kind: 'مشتريات جديدة' },
+  { label: 'فاتورة مردود مشتريات', kind: 'مردود مشتريات جديدة' },
+  { label: 'فاتورة مبيعات', kind: 'مبيعات جديدة' },
+  { label: 'فاتورة مردود مبيعات', kind: 'مردود مبيعات جديدة' },
+  { label: 'مذكرة ادخال', kind: 'مذكرة ادخال جديدة' },
+  { label: 'مذكرة اخراج', kind: 'مذكرة اخراج جديدة' },
+  { label: 'طلب شراء', kind: 'طلب شراء جديد' },
+  { label: 'عرض أسعار', kind: 'عرض أسعار جديد' },
+  { label: 'حجز مبيعات', kind: 'حجز مبيعات جديد' },
+  { label: 'نموذج مكونات مادة' },
+  { label: 'المجموعة' },
+  { label: 'الوكيل' },
+  { label: 'الدولة' },
+  { label: 'الاسم العلمي' },
+  { label: 'الهيئة' },
+  { label: 'القوة' },
+  { label: 'النوع' },
+  { label: 'العمود' },
+  { label: 'الصف' },
+  { label: 'العبوة' },
+];
 
 const DEFAULT_ACCOUNT_LIST = [
   'الصندوق',
@@ -118,6 +165,8 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
   warehouses,
   currencies,
   reportTemplates = [],
+  designerSections,
+  companyProps,
   onFocus,
   onClose,
   onSaveInvoice,
@@ -137,6 +186,9 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
       'inv-tpl-1'
   );
   const [tplPickerOpen, setTplPickerOpen] = useState(false);
+  const [kindMenuOpen, setKindMenuOpen] = useState(false);
+  const [expensesOpen, setExpensesOpen] = useState(false);
+  const [includeBonusInCost, setIncludeBonusInCost] = useState(true);
 
   // Header fields
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -179,6 +231,15 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
   const [inlineSuggestRow, setInlineSuggestRow] = useState<number | null>(null);
   const [shortagesOpen, setShortagesOpen] = useState(false);
   const [fetchOpen, setFetchOpen] = useState(false);
+  const [fetchSelectedId, setFetchSelectedId] = useState<string | null>(null);
+  const [fetchAccount, setFetchAccount] = useState('');
+  const [fetchNumber, setFetchNumber] = useState('');
+  const [fetchName, setFetchName] = useState('');
+  const [fetchPrevYear, setFetchPrevYear] = useState(false);
+  const [fetchFrom, setFetchFrom] = useState(
+    () => `${new Date().getFullYear()}-01-01`
+  );
+  const [fetchTo, setFetchTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [previewMode, setPreviewMode] = useState<'none' | 'invoice' | 'loadingOrder'>('none');
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
   const [confirmPrintTemplate, setConfirmPrintTemplate] = useState('نموذج طباعة ١');
@@ -236,6 +297,16 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
   );
 
   useEffect(() => {
+    const cls = 'print-preview-open';
+    if (open && previewMode !== 'none') {
+      document.body.classList.add(cls);
+    } else {
+      document.body.classList.remove(cls);
+    }
+    return () => document.body.classList.remove(cls);
+  }, [open, previewMode]);
+
+  useEffect(() => {
     if (open) {
       setViewMode(launch.mode);
       setKindTitle(launch.kindTitle);
@@ -248,9 +319,9 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
     }
   }, [open, launch]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const applyTemplate = (tplId: string) => {
+  const applyTemplate = (tplId: string, tplObj?: InvoiceTemplateConfig) => {
     setSelectedTplId(tplId);
-    const t = invoiceTemplates.find((x) => x.id === tplId);
+    const t = tplObj || invoiceTemplates.find((x) => x.id === tplId);
     if (!t) return;
     setPayType(t.general.defaultPayType || 'آجل');
     if (t.general.useDefaultCustomer) setParty(t.general.defaultCustomer);
@@ -290,6 +361,39 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
       ? taxableBase + expensesNum
       : taxableBase + computedTax + expensesNum
   );
+  const designerHeader: DesignerSectionData | undefined = designerSections?.headerFirst;
+  const designerFooter: DesignerSectionData | undefined = designerSections?.footerLast;
+  const hasDesignerHeader = (designerHeader?.rows.length ?? 0) > 0;
+  const hasDesignerFooter = (designerFooter?.rows.length ?? 0) > 0;
+  const designerTokens: Record<string, string> = {
+    '[اسم العميل]': party.trim() || 'عميل نقدي',
+    '[الاسم]': party.trim() || 'عميل نقدي',
+    '[المستودع]': warehouse || '',
+    '[رقم الفاتورة]': invNumber,
+    '[نوع الفاتورة]': shortWindowTitle(kindTitle),
+    '[نوع الدفع]': payType,
+    '[التاريخ]': invDate,
+    '[العملة]': currency,
+    '[الإجمالي]': Math.max(0, subTotal - lineDiscountTotal).toFixed(0),
+    '[المجموع]': subTotal.toFixed(0),
+    '[الصافي]': netTotal.toFixed(2),
+    '[الصافي رقما وكتابة]': `${netTotal.toFixed(2)} ${amountToArabicWords(netTotal, currency)}`,
+    '[إجمالي الكمية]': totalQty.toFixed(0),
+    '[البيان]':
+      notes?.trim() || `فاتورة ${shortWindowTitle(kindTitle)} برقم ${invNumber}`,
+    '[إسم الشركة]': companyProps?.hdrArName || companyProps?.company || 'بديل سوفت',
+  };
+  const isSalesDoc = shortWindowTitle(kindTitle).includes('مبيعات');
+  const showBarcodeCol = activeTpl.columns.showBarcode && isSalesDoc;
+  const showCodeCol = !activeTpl.extraTabs.hideItemCode && !isSalesDoc;
+  const showLineWarehouseCol = isSalesDoc;
+  const stampText = (() => {
+    const d = new Date();
+    const p2 = (n: number) => String(n).padStart(2, '0');
+    return `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()} ${p2(
+      d.getHours()
+    )}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`;
+  })();
   const effectiveCashPaid =
     payType === 'نقدي' || activeTpl.general.cashEqualsNet
       ? cashPaid !== ''
@@ -338,6 +442,61 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
       }),
     [importedMaterials]
   );
+
+  const fetchInvoices = useMemo(() => {
+    const year = new Date().getFullYear();
+    const from = fetchPrevYear ? `${year - 1}-01-01` : fetchFrom;
+    const returnsSales = kindTitle.includes('مردود مبيعات');
+    const returnsPurchase = kindTitle.includes('مردود مشتريات');
+    const salesOnly = !returnsSales && !returnsPurchase && kindTitle.includes('مبيعات');
+    const purchaseOnly = !returnsSales && !returnsPurchase && kindTitle.includes('مشتريات');
+    return invoices
+      .filter((inv) => {
+        if (returnsSales && !(inv.kind.includes('مردود') && inv.kind.includes('مبيعات'))) {
+          return false;
+        }
+        if (returnsPurchase && !(inv.kind.includes('مردود') && inv.kind.includes('مشتريات'))) {
+          return false;
+        }
+        if (salesOnly && (!inv.kind.includes('مبيعات') || inv.kind.includes('مردود'))) {
+          return false;
+        }
+        if (purchaseOnly && (!inv.kind.includes('مشتريات') || inv.kind.includes('مردود'))) {
+          return false;
+        }
+        if (from && inv.date < from) return false;
+        if (fetchTo && inv.date > fetchTo) return false;
+        if (
+          fetchAccount.trim() &&
+          !inv.party.toLowerCase().includes(fetchAccount.trim().toLowerCase())
+        ) {
+          return false;
+        }
+        if (fetchNumber.trim() && !inv.number.includes(fetchNumber.trim())) return false;
+        if (fetchName.trim()) {
+          const hay = `${inv.contactName || ''} ${inv.distributor || ''} ${inv.party}`.toLowerCase();
+          if (!hay.includes(fetchName.trim().toLowerCase())) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [
+    invoices,
+    kindTitle,
+    fetchPrevYear,
+    fetchFrom,
+    fetchTo,
+    fetchAccount,
+    fetchNumber,
+    fetchName,
+  ]);
+
+  useEffect(() => {
+    if (!fetchOpen) return;
+    if (!fetchInvoices.some((inv) => inv.id === fetchSelectedId)) {
+      setFetchSelectedId(fetchInvoices[0]?.id ?? null);
+    }
+  }, [fetchOpen, fetchInvoices, fetchSelectedId]);
 
   const updateLine = (idx: number, field: keyof InvoiceLineItem, val: string | number) => {
     setItems((prev) => {
@@ -401,6 +560,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
             current.price = Number(match.purchasePrice || '0') || current.price;
           }
         }
+        if (!current.warehouse) current.warehouse = warehouse;
       }
       next[idx] = current;
       return next;
@@ -453,6 +613,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
         qty: next[idx].qty > 0 ? next[idx].qty : 1,
         cost: basePrice,
         price: adjustedPrice,
+        warehouse: next[idx].warehouse || m.warehouse || warehouse,
       };
       return next;
     });
@@ -478,6 +639,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
         date: invDate,
         party: party.trim() || (payType === 'نقدي' ? 'عميل نقدي' : 'عميل آجل'),
         accountCode: partyCode,
+        contactName,
         payType,
         docNumber,
         address,
@@ -496,7 +658,10 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
         templateId: activeTpl.id,
         currency,
         notes,
-        items: validItems,
+        items: validItems.map((it) => ({
+          ...it,
+          warehouse: it.warehouse || warehouse,
+        })),
         total: netTotal,
         profit: totalProfit - discountNum,
         by: currentUser,
@@ -622,6 +787,57 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
     confirmAndPersistSave,
   ]);
 
+  const openFetchDialog = () => {
+    setFetchAccount('');
+    setFetchNumber('');
+    setFetchName('');
+    setFetchPrevYear(false);
+    setFetchFrom(`${new Date().getFullYear()}-01-01`);
+    setFetchTo(new Date().toISOString().slice(0, 10));
+    setFetchSelectedId(null);
+    setFetchOpen(true);
+  };
+
+  const requestDelete = async () => {
+    if (editingId) {
+      const res = await onShowMsg({
+        title: 'حذف الفاتورة',
+        icon: 'question',
+        text: `هل تريد حذف الفاتورة رقم ${invNumber}؟`,
+        buttons: [
+          { label: 'نعم', value: 'yes' },
+          { label: 'لا', value: 'no', focus: true },
+        ],
+      });
+      if (res === 'yes') {
+        onDeleteInvoice(editingId);
+        resetFormForLaunch(launch, activeTpl);
+        onNotify('تم حذف الفاتورة');
+      }
+    } else {
+      resetFormForLaunch(launch, activeTpl);
+      onNotify('تم تفريغ الحقول');
+    }
+  };
+
+  const loadFromFetch = (inv: InvoiceRecord) => {
+    const cloned = inv.items.map((x, idx) => ({ ...x, id: `fetch-${Date.now()}-${idx}` }));
+    while (cloned.length < 9) cloned.push(makeEmptyLine(cloned.length));
+    setItems(cloned);
+    setParty(inv.party);
+    setPartyCode(inv.accountCode || '');
+    setContactName(inv.contactName || '');
+    setPayType(inv.payType || 'آجل');
+    setWarehouse(inv.warehouse || warehouses[0]?.name || 'مستودع 1');
+    setCurrency(inv.currency || currency);
+    setDocNumber(inv.docNumber || '');
+    setAddress(inv.address || '');
+    setDistributor(inv.distributor || '');
+    setNotes(inv.notes || '');
+    setFetchOpen(false);
+    onNotify(`تم جلب أصناف ${inv.kind} رقم ${inv.number}`);
+  };
+
   const loadForEdit = (inv: InvoiceRecord) => {
     setEditingId(inv.id);
     setKindTitle(inv.kind);
@@ -629,6 +845,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
     setInvDate(inv.date);
     setParty(inv.party);
     setPartyCode(inv.accountCode || '');
+    setContactName(inv.contactName || '');
     setPayType(inv.payType || 'آجل');
     setDocNumber(inv.docNumber || '');
     setAddress(inv.address || '');
@@ -667,6 +884,15 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
 
   const labelTypeAccount =
     kindTitle.includes('مشتريات') || kindTitle.includes('شراء') ? 'ح/مشتريات' : `ح/${shortWindowTitle(kindTitle)}`;
+  const fetchWindowTitle = kindTitle.includes('مردود مبيعات')
+    ? 'فواتير مردود المبيعات'
+    : kindTitle.includes('مردود مشتريات')
+      ? 'فواتير مردود المشتريات'
+      : kindTitle.includes('مشتريات')
+        ? 'فواتير المشتريات'
+        : kindTitle.includes('مبيعات')
+          ? 'فواتير المبيعات'
+          : `فواتير ${shortWindowTitle(kindTitle)}`;
 
   return (
     <>
@@ -761,6 +987,16 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                       onChange={(e) => setPartyCode(e.target.value)}
                       className="erp-field w-[135px] bg-[#eaeaea] text-center font-bold"
                     />
+                    {isSalesDoc && (
+                      <label className="flex items-center gap-1 font-bold cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={payType === 'شبكة'}
+                          onChange={(e) => setPayType(e.target.checked ? 'شبكة' : 'آجل')}
+                        />
+                        <span>شبكة</span>
+                      </label>
+                    )}
                     <fieldset className="border border-[#c5ccd8] px-2 pb-1 pt-0.5 flex items-center gap-1">
                       <legend className="text-[11px] font-bold px-1">نوع الفاتورة</legend>
                       <select
@@ -773,7 +1009,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                         <option value="آجل">آجل</option>
                         <option value="نقدي">نقدي</option>
                         {activeTpl.general.showExtraPayType && <option value="شيك">شيك</option>}
-                        {activeTpl.general.showExtraPayType && <option value="شبكة">شبكة</option>}
+                        <option value="شبكة">شبكة</option>
                       </select>
                     </fieldset>
                     <span className="font-bold">العملة</span>
@@ -908,6 +1144,31 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                         </select>
                       </div>
                     )}
+                    {!isSalesDoc && (
+                      <>
+                        <label className="flex items-center gap-1.5 font-bold cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={includeBonusInCost}
+                            onChange={(e) => setIncludeBonusInCost(e.target.checked)}
+                          />
+                          <span>احتساب البونص في سعر التكلفة</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onNotify(
+                              `ربط المواد بالمورد: ${
+                                party.trim() || 'لم يتم اختيار مورد بعد'
+                              }`
+                            )
+                          }
+                          className="erp-classic-btn px-3 h-[24px] text-[11px]"
+                        >
+                          ربط المواد بالمورد
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -954,12 +1215,12 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                               <th className="py-1 px-1.5 border-l border-[#666] w-[36px]">
                                 {colLabel('del', 'حذف')}
                               </th>
-                              {activeTpl.columns.showBarcode && (
+                              {showBarcodeCol && (
                                 <th className="py-1 px-2 border-l border-[#666] w-[92px]">
                                   {colLabel('barcode', 'الباركود')}
                                 </th>
                               )}
-                              {!activeTpl.extraTabs.hideItemCode && (
+                              {showCodeCol && (
                                 <th className="py-1 px-2 border-l border-[#666] w-[75px]">
                                   {colLabel('code', 'الرمز')}
                                 </th>
@@ -967,6 +1228,11 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                               <th className="py-1 px-2 border-l border-[#666]">
                                 {colLabel('item', 'المادة')}
                               </th>
+                              {showLineWarehouseCol && (
+                                <th className="py-1 px-2 border-l border-[#666] w-[82px]">
+                                  {colLabel('warehouse', 'مستود')}
+                                </th>
+                              )}
                               {!activeTpl.columns.hideQty && (
                                 <th className="py-1 px-2 border-l border-[#666] w-[78px]">
                                   {colLabel('qty', 'الكمية')}
@@ -985,6 +1251,11 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                               <th className="py-1 px-2 border-l border-[#666] w-[88px]">
                                 {colLabel('price', 'السعر')}
                               </th>
+                              {!activeTpl.columns.hideTotal && (
+                                <th className="py-1 px-2 border-l border-[#666] w-[110px]">
+                                  {colLabel('total', 'الإجمالي')}
+                                </th>
+                              )}
                               {activeTpl.discountsAndCommissions.showDiscountPercent && (
                                 <th className="py-1 px-1.5 border-l border-[#666] w-[62px]">
                                   {colLabel('discPct', 'ن الخصم')}
@@ -998,11 +1269,6 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                               {activeTpl.columns.showExpiry && (
                                 <th className="py-1 px-2 border-l border-[#666] w-[95px]">
                                   {colLabel('expiryDate', 'تاريخ الصلاحية')}
-                                </th>
-                              )}
-                              {!activeTpl.columns.hideTotal && (
-                                <th className="py-1 px-2 border-l border-[#666] w-[110px]">
-                                  {colLabel('total', 'الإجمالي')}
                                 </th>
                               )}
                               <th className="py-1 px-1.5 w-[52px] bg-[#eceef4] border-r border-[#888]">
@@ -1044,7 +1310,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                                 ×
                               </button>
                             </td>
-                            {activeTpl.columns.showBarcode && (
+                            {showBarcodeCol && (
                               <td className="p-0 border-l border-[#bbb]">
                                 <input
                                   value={it.barcode || ''}
@@ -1053,7 +1319,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                                 />
                               </td>
                             )}
-                            {!activeTpl.extraTabs.hideItemCode && (
+                            {showCodeCol && (
                               <td className="p-0 border-l border-[#bbb]">
                                 <input
                                   value={it.code}
@@ -1167,6 +1433,24 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                                 </div>
                               )}
                             </td>
+                            {showLineWarehouseCol && (
+                            <td className="p-0 border-l border-[#bbb]">
+                              <select
+                                value={it.warehouse || warehouse}
+                                onChange={(e) => updateLine(idx, 'warehouse', e.target.value)}
+                                className="w-full h-[24px] px-1 bg-transparent text-center font-bold outline-none focus:bg-[#e5f1fb]"
+                              >
+                                {warehouse && !warehouses.some((w) => w.name === warehouse) && (
+                                  <option value={warehouse}>{warehouse}</option>
+                                )}
+                                {warehouses.map((w) => (
+                                  <option key={`row-wh-${w.id}`} value={w.name}>
+                                    {w.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            )}
                             {!activeTpl.columns.hideQty && (
                               <td className="p-0 border-l border-[#bbb]">
                                 <input
@@ -1224,6 +1508,11 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                                 className="w-full h-[24px] px-1.5 text-center bg-transparent outline-none focus:bg-[#e5f1fb]"
                               />
                             </td>
+                            {!activeTpl.columns.hideTotal && (
+                              <td className="px-2 text-left font-bold border-l border-[#bbb]">
+                                {rowTotal > 0 ? rowTotal.toFixed(2) : ''}
+                              </td>
+                            )}
                             {activeTpl.discountsAndCommissions.showDiscountPercent && (
                               <td className="p-0 border-l border-[#bbb]">
                                 <input
@@ -1260,11 +1549,6 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                                 />
                               </td>
                             )}
-                            {!activeTpl.columns.hideTotal && (
-                              <td className="px-2 text-left font-bold border-l border-[#bbb]">
-                                {rowTotal > 0 ? rowTotal.toFixed(2) : ''}
-                              </td>
-                            )}
                             <td className="px-1.5 text-center font-bold bg-[#eceef4] border-r border-[#888]">
                               {idx === 0 ? '◀ ' : ''}
                               {idx + 1}
@@ -1293,20 +1577,17 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                   <table className="w-full border-collapse text-[12px]">
                     <thead className="sticky top-0">
                       <tr className="bg-[#b6b8f2] border-b border-[#444]">
-                        <th className="py-1 px-2 border-l border-[#666] w-[32%]">البيان</th>
-                        <th className="py-1 px-2 border-l border-[#666] w-[28%]">المبلغ</th>
-                        <th className="py-1 px-2 border-l border-[#666] w-[28%]">الحساب</th>
+                        <th className="py-1 px-1.5 border-l border-[#666] w-[52px] bg-[#eceef4]">م</th>
+                        <th className="py-1 px-2 border-l border-[#666] w-[30%]">الحساب</th>
                         <th className="py-1 px-2 border-l border-[#666] w-[52px]" />
-                        <th className="py-1 px-1.5 w-[58px] bg-[#eceef4] border-r border-[#888]">
-                          م
-                        </th>
+                        <th className="py-1 px-2 border-l border-[#666] w-[22%]">المبلغ</th>
+                        <th className="py-1 px-2">البيان</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr className="bg-white border-b border-[#ccc] h-[24px]">
-                        <td className="px-2 font-bold border-l border-[#ccc]">{labelTypeAccount}</td>
-                        <td className="px-2 text-left font-bold border-l border-[#ccc]">
-                          {netTotal.toFixed(2)}
+                        <td className="px-1.5 text-center font-bold bg-[#eceef4] border-l border-[#ccc]">
+                          ◀ 1
                         </td>
                         <td className="px-2 font-bold border-l border-[#ccc]">{salesAccount}</td>
                         <td className="p-0.5 text-center border-l border-[#ccc]">
@@ -1325,24 +1606,14 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                             بحث
                           </button>
                         </td>
-                        <td className="px-1.5 text-center font-bold bg-[#eceef4] border-r border-[#888]">
-                          ◀ 1
+                        <td className="px-2 text-left font-bold border-l border-[#ccc]">
+                          {netTotal.toFixed(2)}
                         </td>
+                        <td className="px-2 font-bold">{labelTypeAccount}</td>
                       </tr>
                       <tr className="bg-[#f8f9ca] border-b border-[#ccc] h-[24px]">
-                        <td className="px-2 font-bold border-l border-[#ccc]">الدفعة النقدية</td>
-                        <td className="p-0 border-l border-[#ccc]">
-                          <input
-                            type="number"
-                            min={0}
-                            value={
-                              payType === 'نقدي' && cashPaid === ''
-                                ? netTotal || ''
-                                : cashPaid
-                            }
-                            onChange={(e) => setCashPaid(e.target.value)}
-                            className="w-full h-[22px] px-2 text-left bg-transparent outline-none font-bold"
-                          />
+                        <td className="px-1.5 text-center font-bold bg-[#eceef4] border-l border-[#ccc]">
+                          2
                         </td>
                         <td className="px-2 font-bold border-l border-[#ccc]">{cashAccount}</td>
                         <td className="p-0.5 text-center border-l border-[#ccc]">
@@ -1361,14 +1632,24 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                             بحث
                           </button>
                         </td>
-                        <td className="px-1.5 text-center font-bold bg-[#eceef4] border-r border-[#888]">
-                          2
+                        <td className="p-0 border-l border-[#ccc]">
+                          <input
+                            type="number"
+                            min={0}
+                            value={
+                              payType === 'نقدي' && cashPaid === ''
+                                ? netTotal || ''
+                                : cashPaid
+                            }
+                            onChange={(e) => setCashPaid(e.target.value)}
+                            className="w-full h-[22px] px-2 text-left bg-transparent outline-none font-bold"
+                          />
                         </td>
+                        <td className="px-2 font-bold">الدفعة النقدية</td>
                       </tr>
                       <tr className="bg-white border-b border-[#ccc] h-[24px]">
-                        <td className="px-2 font-bold border-l border-[#ccc]">خصم ممنوح</td>
-                        <td className="px-2 text-left font-bold border-l border-[#ccc]">
-                          {discountNum > 0 ? discountNum.toFixed(2) : ''}
+                        <td className="px-1.5 text-center font-bold bg-[#eceef4] border-l border-[#ccc]">
+                          3
                         </td>
                         <td className="px-2 font-bold border-l border-[#ccc]">{discountAccount}</td>
                         <td className="p-0.5 text-center border-l border-[#ccc]">
@@ -1387,9 +1668,10 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                             بحث
                           </button>
                         </td>
-                        <td className="px-1.5 text-center font-bold bg-[#eceef4] border-r border-[#888]">
-                          3
+                        <td className="px-2 text-left font-bold border-l border-[#ccc]">
+                          {discountNum > 0 ? discountNum.toFixed(2) : ''}
                         </td>
+                        <td className="px-2 font-bold">خصم ممنوح</td>
                       </tr>
                     </tbody>
                   </table>
@@ -1441,7 +1723,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                     <span className="font-bold">المجموع</span>
                     <input
                       readOnly
-                      value={subTotal.toFixed(0)}
+                      value={fmtAmt(subTotal)}
                       className="erp-field w-[105px] bg-[#eaeaea] text-center font-bold"
                     />
                   </div>
@@ -1459,7 +1741,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                     <span className="font-bold">الصافي</span>
                     <input
                       readOnly
-                      value={netTotal.toFixed(0)}
+                      value={fmtAmt(netTotal)}
                       className="erp-field w-[95px] bg-[#eaeaea] text-center font-bold"
                     />
                   </div>
@@ -1468,7 +1750,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                     <input
                       type="number"
                       min={0}
-                      value={taxActive ? computedTax : taxVal}
+                      value={taxActive ? fmtAmt(computedTax) : taxVal}
                       readOnly={taxActive}
                       onChange={(e) => setTaxVal(e.target.value)}
                       className="erp-field w-[78px] bg-[#eaeaea] text-center font-bold"
@@ -1502,8 +1784,10 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                   </div>
                   <input
                     readOnly
-                    value={currency}
-                    className="erp-field w-[95px] bg-[#eaeaea] text-center text-[11px]"
+                    value={stampText}
+                    title="تاريخ ووقت الطباعة"
+                    className="erp-field w-[150px] bg-white text-center text-[11px]"
+                    dir="ltr"
                   />
                 </div>
 
@@ -1540,90 +1824,227 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
               </div>
               )}
 
-              {/* Bottom Command Bar (matching Screenshot 042024) */}
-              <div className="bg-[#f0f0f0] px-2 py-1.5 grid grid-cols-8 gap-1">
-                <button
-                  type="button"
-                  onClick={onOpenPrint}
-                  className="border border-[#666] bg-[#b8c4f4] hover:brightness-95 h-[28px] font-bold cursor-pointer"
-                >
-                  اعدادات الطباعة
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPrintCount((c) => c + 1);
-                    setPreviewMode('invoice');
-                  }}
-                  className="border border-[#666] bg-[#b8c4f4] hover:brightness-95 h-[28px] font-bold cursor-pointer"
-                >
-                  معاينة
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPrintCount((c) => c + 1);
-                    window.print();
-                  }}
-                  className="border border-[#666] bg-[#b8c4f4] hover:brightness-95 h-[28px] font-bold cursor-pointer"
-                >
-                  طباعة
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFetchOpen(true)}
-                  className="border border-[#666] bg-[#b8c4f4] hover:brightness-95 h-[28px] font-bold cursor-pointer"
-                >
-                  جلب
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTplPickerOpen(true)}
-                  className="border border-[#666] bg-[#b8c4f4] hover:brightness-95 h-[28px] font-bold cursor-pointer"
-                >
-                  نموذج فاتورة
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleSave()}
-                  className="border border-[#333] bg-[#b8c4f4] hover:brightness-95 h-[28px] font-extrabold cursor-pointer shadow-inner"
-                >
-                  حفظ F2
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (editingId) {
-                      const res = await onShowMsg({
-                        title: 'حذف الفاتورة',
-                        icon: 'question',
-                        text: `هل تريد حذف الفاتورة رقم ${invNumber}؟`,
-                        buttons: [
-                          { label: 'نعم', value: 'yes' },
-                          { label: 'لا', value: 'no', focus: true },
-                        ],
-                      });
-                      if (res === 'yes') {
-                        onDeleteInvoice(editingId);
-                        resetFormForLaunch(launch, activeTpl);
-                        onNotify('تم حذف الفاتورة');
-                      }
-                    } else {
-                      resetFormForLaunch(launch, activeTpl);
-                      onNotify('تم تفريغ الحقول');
-                    }
-                  }}
-                  className="border border-[#666] bg-[#b8c4f4] hover:brightness-95 h-[28px] font-bold cursor-pointer"
-                >
-                  حذف
-                </button>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="border border-[#666] bg-[#b8c4f4] hover:brightness-95 h-[28px] font-bold cursor-pointer"
-                >
-                  خروج
-                </button>
+              {/* Bottom Command Bar — flat 8-button layout for sales, grouped for purchases */}
+              <div
+                className={`bg-[#f0f0f0] px-2 py-1.5 relative ${
+                  isSalesDoc
+                    ? 'grid grid-cols-8 gap-1'
+                    : 'flex flex-wrap items-center justify-between gap-2'
+                }`}
+              >
+                {isSalesDoc ? (
+                  <>
+                    <button type="button" onClick={onOpenPrint} className={BAR_BTN_SALES}>
+                      اعدادات الطباعة
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPrintCount((c) => c + 1);
+                        setPreviewMode('invoice');
+                      }}
+                      className={BAR_BTN_SALES}
+                    >
+                      معاينة
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPrintCount((c) => c + 1);
+                        setPreviewMode('invoice');
+                        window.setTimeout(() => window.print(), 450);
+                      }}
+                      className={BAR_BTN_SALES}
+                    >
+                      طباعة
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setKindMenuOpen(false);
+                        openFetchDialog();
+                      }}
+                      className={BAR_BTN_SALES}
+                    >
+                      جلب
+                    </button>
+                    <div className="flex">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setKindMenuOpen(false);
+                          setTplPickerOpen(true);
+                        }}
+                        className={`${BAR_BTN_SALES} flex-1`}
+                      >
+                        نموذج فاتورة
+                      </button>
+                      <button
+                        type="button"
+                        title="قائمة أنواع الفواتير"
+                        onClick={() => setKindMenuOpen((v) => !v)}
+                        className={`border border-r-0 border-[#666] h-[30px] w-[22px] font-bold cursor-pointer ${
+                          kindMenuOpen ? 'bg-[#cfe4fb]' : 'bg-[#dfe4f7] hover:bg-[#c9d5f3]'
+                        }`}
+                      >
+                        ▾
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleSave()}
+                      className="border border-[#333] bg-[#c9d5f3] hover:brightness-95 h-[30px] font-extrabold cursor-pointer"
+                    >
+                      حفظ F2
+                    </button>
+                    <button type="button" onClick={() => void requestDelete()} className={BAR_BTN_SALES}>
+                      حذف
+                    </button>
+                    <button type="button" onClick={onClose} className={BAR_BTN_SALES}>
+                      خروج
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-1">
+                      <button type="button" onClick={onClose} className={`${BAR_BTN} w-[76px]`}>
+                        خروج
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void requestDelete()}
+                        className={`${BAR_BTN} w-[76px]`}
+                      >
+                        حذف
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleSave()}
+                        className="border border-[#333] bg-[#b8c4f4] hover:brightness-95 h-[28px] w-[96px] font-extrabold cursor-pointer shadow-inner"
+                      >
+                        موافق F2
+                      </button>
+                      <div className="flex">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setKindMenuOpen(false);
+                            setTplPickerOpen(true);
+                          }}
+                          className={`border border-r-0 border-[#666] bg-[#e9edf4] hover:brightness-95 h-[28px] w-[96px] font-bold cursor-pointer`}
+                        >
+                          نموذج فاتورة
+                        </button>
+                        <button
+                          type="button"
+                          title="قائمة أنواع الفواتير"
+                          onClick={() => setKindMenuOpen((v) => !v)}
+                          className={`border border-[#666] h-[28px] w-[24px] font-bold cursor-pointer ${
+                            kindMenuOpen
+                              ? 'bg-[#cfe4fb] border-[#0078d7]'
+                              : 'bg-[#e9edf4] hover:brightness-95'
+                          }`}
+                        >
+                          ▾
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setKindMenuOpen(false);
+                          openFetchDialog();
+                        }}
+                        className={`${BAR_BTN} w-[76px]`}
+                      >
+                        جلب
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setExpensesOpen(true)}
+                        className={`${BAR_BTN} w-[84px]`}
+                      >
+                        المصاريف
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={onOpenPrint}
+                        className={`${BAR_BTN} w-[118px]`}
+                      >
+                        اعدادات الطباعة
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPrintCount((c) => c + 1);
+                          setPreviewMode('invoice');
+                        }}
+                        className={`${BAR_BTN} w-[86px]`}
+                      >
+                        معاينة
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPrintCount((c) => c + 1);
+                          setPreviewMode('loadingOrder');
+                        }}
+                        className={`${BAR_BTN} w-[96px]`}
+                      >
+                        أمر تحميل
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* نموذج فاتورة menu — list of document types (screenshot 3) */}
+                {kindMenuOpen && (
+                  <div
+                    className={`absolute bottom-[34px] z-[60] w-[230px] bg-white border border-[#7a8699] shadow-xl py-0.5 text-[12px] max-h-[430px] overflow-auto erp-scrollbar ${
+                      isSalesDoc ? 'right-[318px]' : 'right-[214px]'
+                    }`}
+                    onMouseLeave={() => setKindMenuOpen(false)}
+                  >
+                    {KIND_MENU_ITEMS.map((item, i) => (
+                      <React.Fragment key={item.label}>
+                        {i === 10 && <div className="h-px bg-[#d5d5d5] my-1" />}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setKindMenuOpen(false);
+                            if (!item.kind) {
+                              onNotify(`شاشة «${item.label}» تُفتح من القائمة الرئيسية`);
+                              return;
+                            }
+                            setKindTitle(item.kind);
+                            setViewMode('editor');
+                            resetFormForLaunch(
+                              { mode: 'editor', kindTitle: item.kind },
+                              activeTpl
+                            );
+                            onNotify(`تم فتح ${item.label}`);
+                          }}
+                          className="w-full text-right px-3 py-[3px] hover:bg-[#0078d7] hover:text-white cursor-pointer"
+                        >
+                          {item.label}
+                        </button>
+                      </React.Fragment>
+                    ))}
+                    <div className="h-px bg-[#d5d5d5] my-1" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setKindMenuOpen(false);
+                        setTplPickerOpen(true);
+                      }}
+                      className="w-full text-right px-3 py-[3px] font-bold text-[#005499] hover:bg-[#0078d7] hover:text-white cursor-pointer"
+                    >
+                      قوالب الفواتير (نماذج)…
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1951,60 +2372,176 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
         </div>
       )}
 
-      {/* جلب (Fetch from existing invoice or AI Scan) */}
+      {/* جلب / استعراض فواتير سابقة (matching فواتير المبيعات window) */}
       {fetchOpen && (
         <div className="fixed inset-0 z-[9998] bg-black/30 flex items-center justify-center p-4">
-          <div className="bg-[#f0f0f0] border-2 border-[#333] w-[460px] max-h-[420px] flex flex-col shadow-xl">
-            <div className="bg-[#dfe6f0] border-b border-[#9aa7b8] px-3 py-1.5 font-bold flex justify-between items-center">
-              <span>جلب بيانات فاتورة / مستند</span>
+          <div className="bg-[#f0f0f0] border-2 border-[#3a3a3a] w-[900px] max-h-[580px] flex flex-col shadow-2xl text-[12px] select-none">
+            {/* Title bar */}
+            <div className="bg-gradient-to-b from-[#ffffff] to-[#e6ebf5] border-b border-[#9aa7b8] px-2 py-1 flex items-center justify-between">
+              <div className="flex items-center gap-2 font-bold">
+                <span className="inline-block w-4 h-4 bg-[conic-gradient(#e33_0_25%,#fc0_0_50%,#3a7_0_75%,#38e_0)] border border-[#888]" />
+                <span>{fetchWindowTitle}</span>
+              </div>
               <button
                 type="button"
                 onClick={() => setFetchOpen(false)}
-                className="px-2 font-bold cursor-pointer"
+                className="w-7 h-6 border border-[#b9c4d4] bg-[#eef2fa] font-bold cursor-pointer hover:bg-[#e81123] hover:text-white"
               >
                 ×
               </button>
             </div>
-            <div className="p-3 flex flex-col gap-2 overflow-hidden flex-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setFetchOpen(false);
-                  onOpenAiInvoiceScan();
-                }}
-                className="erp-classic-btn focused h-[30px]"
-              >
-                قراءة فاتورة بالذكاء الاصطناعي (مسح ضوئي)
-              </button>
-              <div className="text-[11px] font-bold text-[#445]">أو جلب أصناف من فاتورة سابقة:</div>
-              <div className="flex-1 bg-white border border-[#9aa7b8] overflow-auto erp-scrollbar">
-                {invoices.length === 0 ? (
-                  <div className="p-4 text-center text-[#666]">لا توجد فواتير سابقة للجلب.</div>
-                ) : (
-                  invoices.map((inv) => (
-                    <button
-                      key={inv.id}
-                      type="button"
-                      onClick={() => {
-                        const cloned = inv.items.map((x, idx) => ({
-                          ...x,
-                          id: `fetch-${Date.now()}-${idx}`,
-                        }));
-                        while (cloned.length < 9) cloned.push(makeEmptyLine(cloned.length));
-                        setItems(cloned);
-                        setParty(inv.party);
-                        setFetchOpen(false);
-                        onNotify(`تم جلب أصناف ${inv.kind} رقم ${inv.number}`);
-                      }}
-                      className="w-full text-right px-3 py-1.5 hover:bg-[#0078d7] hover:text-white border-b border-[#eee] cursor-pointer flex justify-between"
-                    >
-                      <span className="font-bold">
-                        #{inv.number} — {inv.kind} ({inv.party})
-                      </span>
-                      <span>{inv.total.toLocaleString()}</span>
-                    </button>
-                  ))
-                )}
+
+            <div className="p-2.5 flex flex-col gap-2 flex-1 overflow-hidden">
+              {/* Filters */}
+              <div className="bg-[#e8edf5] border border-[#b9c4d4] p-2 flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-bold w-[70px] text-right">اسم الحساب</span>
+                  <input
+                    value={fetchAccount}
+                    onChange={(e) => setFetchAccount(e.target.value)}
+                    className="erp-field w-[300px] bg-white"
+                  />
+                  <span className="font-bold">الرقم</span>
+                  <input
+                    value={fetchNumber}
+                    onChange={(e) => setFetchNumber(e.target.value)}
+                    className="erp-field w-[90px] bg-white text-center"
+                  />
+                  <label className="flex items-center gap-1.5 font-bold cursor-pointer mr-3">
+                    <input
+                      type="checkbox"
+                      checked={fetchPrevYear}
+                      onChange={(e) => setFetchPrevYear(e.target.checked)}
+                    />
+                    <span>السنة السابقة</span>
+                  </label>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-bold">من تاريخ</span>
+                  <input
+                    type="date"
+                    value={fetchFrom}
+                    onChange={(e) => setFetchFrom(e.target.value)}
+                    className="erp-field w-[130px] bg-white text-center"
+                    dir="ltr"
+                  />
+                  <span className="font-bold">الى تاريخ</span>
+                  <input
+                    type="date"
+                    value={fetchTo}
+                    onChange={(e) => setFetchTo(e.target.value)}
+                    className="erp-field w-[130px] bg-white text-center"
+                    dir="ltr"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onNotify(`تم عرض ${fetchInvoices.length} فاتورة`)
+                    }
+                    className="erp-classic-btn w-[72px] h-[26px]"
+                  >
+                    عرض
+                  </button>
+                  <span className="font-bold mr-4">الاسم</span>
+                  <input
+                    value={fetchName}
+                    onChange={(e) => setFetchName(e.target.value)}
+                    className="erp-field flex-1 min-w-[160px] bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onNotify(`تم تصفية القائمة: ${fetchInvoices.length} فاتورة`)}
+                    className="erp-classic-btn w-[62px] h-[26px]"
+                  >
+                    بحث
+                  </button>
+                </div>
+              </div>
+
+              {/* Grid */}
+              <div className="flex-1 bg-white border border-[#8e8e8e] overflow-auto erp-scrollbar min-h-[200px]">
+                <table className="w-full border-collapse text-[12px]">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="bg-[#b6b8f2] border-b border-[#444]">
+                      <th className="py-1 px-2 border-l border-[#666] w-[80px]">الرقم</th>
+                      <th className="py-1 px-2 border-l border-[#666]">الحساب</th>
+                      <th className="py-1 px-2 border-l border-[#666] w-[180px]">الاسم</th>
+                      <th className="py-1 px-2 border-l border-[#666] w-[115px]">التاريخ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fetchInvoices.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="p-6 text-center text-[#666] font-bold">
+                          لا توجد فواتير مطابقة للبحث.
+                        </td>
+                      </tr>
+                    ) : (
+                      fetchInvoices.map((inv, idx) => {
+                        const isSel = fetchSelectedId === inv.id;
+                        return (
+                          <tr
+                            key={inv.id}
+                            onClick={() => setFetchSelectedId(inv.id)}
+                            onDoubleClick={() => loadFromFetch(inv)}
+                            className={`border-b border-[#d5dce6] h-[24px] cursor-pointer ${
+                              isSel
+                                ? 'bg-[#0078d7] text-white'
+                                : idx % 2 === 1
+                                  ? 'bg-[#f8f9ca] hover:bg-[#e5f1fb]'
+                                  : 'bg-white hover:bg-[#e5f1fb]'
+                            }`}
+                          >
+                            <td className="px-2 text-center font-bold border-l border-[#ccc]">
+                              {inv.number || idx + 1}
+                            </td>
+                            <td className="px-2 font-bold border-l border-[#ccc]">{inv.party}</td>
+                            <td className="px-2 border-l border-[#ccc]">
+                              {inv.contactName || inv.distributor || '—'}
+                            </td>
+                            <td className="px-2 text-center border-l border-[#ccc]" dir="ltr">
+                              {inv.date}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFetchOpen(false);
+                    onOpenAiInvoiceScan();
+                  }}
+                  className="erp-classic-btn h-[28px] px-3"
+                >
+                  قراءة فاتورة بالذكاء الاصطناعي
+                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={!fetchInvoices.some((i) => i.id === fetchSelectedId)}
+                    onClick={() => {
+                      const inv = fetchInvoices.find((i) => i.id === fetchSelectedId);
+                      if (inv) loadFromFetch(inv);
+                    }}
+                    className="erp-classic-btn focused w-[120px] h-[30px] font-bold"
+                  >
+                    موافق
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFetchOpen(false)}
+                    className="erp-classic-btn w-[120px] h-[30px] font-bold"
+                  >
+                    خروج
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -2013,86 +2550,437 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
 
       {/* Preview / Loading Order Modal */}
       {previewMode !== 'none' && (
-        <div className="fixed inset-0 z-[9998] bg-black/35 flex items-center justify-center p-4">
-          <div className="bg-white border-2 border-[#333] w-[620px] max-h-[520px] flex flex-col shadow-2xl p-4 gap-3">
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="font-extrabold text-[15px]">
-                {previewMode === 'loadingOrder'
-                  ? `أمر تحميل بضاعة - ${shortWindowTitle(kindTitle)} #${invNumber}`
-                  : `معاينة ${shortWindowTitle(kindTitle)} #${invNumber}`}
-              </h3>
+        <div className="fixed inset-0 z-[9998] bg-black/40 flex items-center justify-center p-3">
+          <div className="bg-white border-2 border-[#333] w-[1000px] max-h-[94vh] flex flex-col shadow-2xl">
+            {/* Print toolbar */}
+            <div className="no-print bg-[#f0f0f0] border-b border-[#9aa7b8] px-2 py-1.5 flex items-center justify-between">
+              <div className="flex items-center gap-2 font-bold text-[12px]">
+                <span className="inline-block w-4 h-4 bg-[conic-gradient(#e33_0_25%,#fc0_0_50%,#3a7_0_75%,#38e_0)] border border-[#888]" />
+                <span>معاينة الطباعة</span>
+                <span className="text-[#555] font-normal">
+                  — {previewMode === 'loadingOrder' ? 'أمر تحميل' : shortWindowTitle(kindTitle)} #{invNumber}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={confirmPrintTemplate}
+                  onChange={(e) => setConfirmPrintTemplate(e.target.value)}
+                  className="erp-field h-[26px] w-[220px] bg-white text-[12px]"
+                >
+                  {invoicePrintTemplateChoices.map((pt) => (
+                    <option key={pt} value={pt}>
+                      {pt}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrintCount((c) => c + 1);
+                    window.print();
+                  }}
+                  className="erp-classic-btn focused px-4 h-[26px] text-[12px] font-bold"
+                >
+                  طباعة
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode('none')}
+                  className="erp-classic-btn px-3 h-[26px] text-[12px]"
+                >
+                  إغلاق
+                </button>
+              </div>
+            </div>
+
+            {/* Paper */}
+            <div className="flex-1 overflow-auto bg-[#9a9a9a] p-4 flex justify-center">
+              <div
+                data-print-preview
+                dir="rtl"
+                className="bg-white w-[794px] min-h-[1040px] p-[18px] text-[11px] text-black shadow-xl border border-[#555] flex flex-col"
+              >
+                {/* Company header — designed header when configured, otherwise the built-in one */}
+                {hasDesignerHeader && designerHeader ? (
+                  <div
+                    className="border-2 border-black px-3 py-2 flex flex-col gap-1"
+                    style={designerFontStyle(designerHeader.font)}
+                  >
+                    {designerHeader.rows.map((r) => (
+                      <div key={r.id} className="grid grid-cols-3 items-center gap-2">
+                        <div className="text-right font-bold">
+                          {renderDesignerTokenPreview(
+                            r.right,
+                            companyProps,
+                            shortWindowTitle(kindTitle),
+                            r.attachBeforeR,
+                            r.attachAfterR,
+                            designerTokens
+                          )}
+                        </div>
+                        <div className="text-center font-bold">
+                          {renderDesignerTokenPreview(
+                            r.center,
+                            companyProps,
+                            shortWindowTitle(kindTitle),
+                            '',
+                            '',
+                            designerTokens
+                          )}
+                        </div>
+                        <div className="text-left font-bold">
+                          {renderDesignerTokenPreview(
+                            r.left,
+                            companyProps,
+                            shortWindowTitle(kindTitle),
+                            r.attachBeforeL,
+                            r.attachAfterL,
+                            designerTokens
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                <div className="border-2 border-black px-3 py-2 flex items-center justify-between gap-3">
+                  <div className="w-[170px] text-left leading-tight">
+                    {companyProps?.hdrEnName && (
+                      <div className="font-bold text-[11px]" dir="ltr">
+                        {companyProps.hdrEnName}
+                      </div>
+                    )}
+                    {companyProps?.hdrEnAddr && (
+                      <div className="text-[9px] text-[#333]" dir="ltr">
+                        {companyProps.hdrEnAddr}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 flex flex-col items-center justify-center">
+                    {companyProps?.logoData ? (
+                      <img
+                        src={companyProps.logoData}
+                        alt="شعار الشركة"
+                        referrerPolicy="no-referrer"
+                        className="max-h-[70px] max-w-[170px] object-contain"
+                      />
+                    ) : (
+                      <div className="text-[22px] font-extrabold text-[#005499]">
+                        {companyProps?.company || 'النظام'}
+                      </div>
+                    )}
+                  </div>
+                  <div className="w-[220px] text-right leading-tight">
+                    <div className="text-[19px] font-extrabold">
+                      {companyProps?.company || 'النظام'}
+                    </div>
+                    {companyProps?.hdrArAddr && (
+                      <div className="text-[9px]">{companyProps.hdrArAddr}</div>
+                    )}
+                    {companyProps?.hdrArTel && (
+                      <div className="text-[9px]">تلفون: {companyProps.hdrArTel}</div>
+                    )}
+                    {companyProps?.taxNumber && (
+                      <div className="text-[9px]">الرقم الضريبي: {companyProps.taxNumber}</div>
+                    )}
+                  </div>
+                </div>
+
+                )}
+
+                {/* Document title */}
+                <div className="border-2 border-black rounded-full text-center font-extrabold text-[15px] py-1 my-2">
+                  {previewMode === 'loadingOrder'
+                    ? 'أمر تحميل بضاعة'
+                    : `فاتورة ${shortWindowTitle(kindTitle)} ${payType === 'آجل' ? 'أجل' : payType}`}
+                </div>
+
+                {/* Invoice info */}
+                <div className="border-2 border-black">
+                  <div className="flex items-center justify-between border-b border-black px-2 py-1">
+                    <div>
+                      رقم الفاتورة: <b>{invNumber}</b>
+                    </div>
+                    <div>
+                      التاريخ: <b>{invDate}</b>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between px-2 py-1">
+                    <div>
+                      اسم العميل: <b>{party || 'عميل نقدي'}</b>
+                    </div>
+                    <div>
+                      العملة: <b>{currency}</b>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Items table */}
+                <table className="w-full border-collapse mt-1 text-[10px]">
+                  <thead>
+                    <tr className="bg-[#d9d9d9]">
+                      {previewMode === 'invoice' && (
+                        <th className="border border-black px-1 py-0.5 w-[78px]">الباركود</th>
+                      )}
+                      <th className="border border-black px-1 py-0.5">المادة</th>
+                      {previewMode === 'invoice' && (
+                        <th className="border border-black px-1 py-0.5 w-[62px]">الانتهاء</th>
+                      )}
+                      <th className="border border-black px-1 py-0.5 w-[52px]">الكمية</th>
+                      {previewMode === 'invoice' && (
+                        <>
+                          <th className="border border-black px-1 py-0.5 w-[48px]">البونص</th>
+                          <th className="border border-black px-1 py-0.5 w-[46px]">ن الخصم</th>
+                          <th className="border border-black px-1 py-0.5 w-[52px]">الخصم</th>
+                          <th className="border border-black px-1 py-0.5 w-[62px]">السعر</th>
+                          <th className="border border-black px-1 py-0.5 w-[74px]">الإجمالي</th>
+                        </>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items
+                      .filter((it) => it.name.trim() || it.qty > 0)
+                      .map((it) => {
+                        const lineTotal = Math.max(
+                          0,
+                          (Number(it.qty) || 0) * (Number(it.price) || 0) -
+                            (Number(it.discount) || 0)
+                        );
+                        return (
+                          <tr key={it.id} className="h-[20px]">
+                            {previewMode === 'invoice' && (
+                              <td className="border border-black px-1 text-center">
+                                {it.barcode || ''}
+                              </td>
+                            )}
+                            <td className="border border-black px-1 font-bold">{it.name}</td>
+                            {previewMode === 'invoice' && (
+                              <td className="border border-black px-1 text-center" dir="ltr">
+                                {it.expiryDate || ''}
+                              </td>
+                            )}
+                            <td className="border border-black px-1 text-center">{it.qty}</td>
+                            {previewMode === 'invoice' && (
+                              <>
+                                <td className="border border-black px-1 text-center">
+                                  {it.bonus || ''}
+                                </td>
+                                <td className="border border-black px-1 text-center">
+                                  {it.discPct || ''}
+                                </td>
+                                <td className="border border-black px-1 text-center">
+                                  {it.discount ? it.discount.toFixed(2) : ''}
+                                </td>
+                                <td className="border border-black px-1 text-center">
+                                  {it.price || ''}
+                                </td>
+                                <td className="border border-black px-1 text-center font-bold">
+                                  {lineTotal > 0 ? lineTotal.toFixed(2) : ''}
+                                </td>
+                              </>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    <tr className="bg-[#f2f2f2] h-[20px]">
+                      <td
+                        colSpan={previewMode === 'invoice' ? 2 : 1}
+                        className="border border-black px-2 text-left font-extrabold text-[#b00020]"
+                      >
+                        المجموع
+                      </td>
+                      {previewMode === 'invoice' && (
+                        <td className="border border-black px-1" />
+                      )}
+                      <td className="border border-black px-1 text-center font-extrabold text-[#b00020]">
+                        {totalQty.toFixed(0)}
+                      </td>
+                      {previewMode === 'invoice' && (
+                        <>
+                          <td className="border border-black px-1" />
+                          <td className="border border-black px-1" />
+                          <td className="border border-black px-1" />
+                          <td className="border border-black px-1" />
+                          <td className="border border-black px-1 text-center font-extrabold">
+                            {Math.max(0, subTotal - lineDiscountTotal).toFixed(2)}
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  </tbody>
+                </table>
+
+                {/* Totals in words */}
+                {previewMode === 'invoice' && (
+                  <div className="border-2 border-black border-t-0 px-2 py-1 text-[10px] leading-relaxed">
+                    <div className="text-left font-bold">
+                      الإجمالي : {Math.max(0, subTotal - lineDiscountTotal).toFixed(0)}
+                    </div>
+                    <div className="text-left font-bold">
+                      الصافي : {netTotal.toFixed(2)} {amountToArabicWords(netTotal, currency)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Statement */}
+                <div className="border-2 border-black mt-1 min-h-[58px] px-2 py-1">
+                  <span className="font-bold">البيان: </span>
+                  <span>
+                    {notes?.trim() ||
+                      `فاتورة ${shortWindowTitle(kindTitle)} ${
+                        payType === 'آجل' ? 'آجلة' : payType
+                      } برقم ${invNumber}`}
+                  </span>
+                </div>
+                <div className="text-[9px] font-bold mt-1.5">
+                  استلمت البضاعة كامل وبحالة جيدة واتعهد بدفع الثمن عند الطلب
+                </div>
+
+                {/* Signatures */}
+                <div className="mt-auto pt-10 grid grid-cols-3 gap-6 text-center font-bold text-[10px]">
+                  <div>
+                    <div>اسم المستلم</div>
+                    <div className="mt-1">توقيع ..............................</div>
+                  </div>
+                  <div>
+                    <div>ادارة المبيعات</div>
+                    <div className="mt-1">..............................</div>
+                  </div>
+                  <div>
+                    <div>ادارة المخزن</div>
+                    <div className="mt-1">..............................</div>
+                  </div>
+                </div>
+
+                {/* Designed footer (last page) */}
+                {hasDesignerFooter && designerFooter && (
+                  <div
+                    className="mt-3 border-t border-black pt-1.5 flex flex-col gap-1"
+                    style={designerFontStyle(designerFooter.font)}
+                  >
+                    {designerFooter.rows.map((r) => (
+                      <div key={r.id} className="grid grid-cols-3 items-center gap-2">
+                        <div className="text-right">
+                          {renderDesignerTokenPreview(
+                            r.right,
+                            companyProps,
+                            shortWindowTitle(kindTitle),
+                            r.attachBeforeR,
+                            r.attachAfterR,
+                            designerTokens
+                          )}
+                        </div>
+                        <div className="text-center">
+                          {renderDesignerTokenPreview(
+                            r.center,
+                            companyProps,
+                            shortWindowTitle(kindTitle),
+                            '',
+                            '',
+                            designerTokens
+                          )}
+                        </div>
+                        <div className="text-left">
+                          {renderDesignerTokenPreview(
+                            r.left,
+                            companyProps,
+                            shortWindowTitle(kindTitle),
+                            r.attachBeforeL,
+                            r.attachAfterL,
+                            designerTokens
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expenses / discount / tax window (المصاريف) */}
+      {expensesOpen && (
+        <div className="fixed inset-0 z-[9999] bg-black/35 flex items-center justify-center p-4">
+          <div className="bg-[#f0f0f0] border-2 border-[#555] w-[430px] shadow-2xl select-none text-[12px]">
+            <div className="bg-white border-b border-[#ccc] px-3 py-1.5 flex justify-between items-center">
+              <span className="font-bold text-[#222]">المصاريف والخصومات</span>
               <button
                 type="button"
-                onClick={() => setPreviewMode('none')}
-                className="erp-classic-btn px-2"
+                onClick={() => setExpensesOpen(false)}
+                className="px-2 font-bold cursor-pointer hover:bg-[#e81123] hover:text-white"
               >
                 ×
               </button>
             </div>
-            <div className="text-[12px] grid grid-cols-2 gap-2 bg-[#f7f9fc] p-2 border">
-              <div>الحساب: <b>{party || 'عميل نقدي'}</b></div>
-              <div>التاريخ: <b>{invDate}</b></div>
-              <div>المستودع: <b>{warehouse}</b></div>
-              <div>النوع: <b>{payType}</b></div>
-            </div>
-            <div className="flex-1 overflow-auto border">
-              <table className="w-full border-collapse text-[12px]">
-                <thead>
-                  <tr className="bg-[#e8edf5]">
-                    <th className="border p-1">م</th>
-                    <th className="border p-1">المادة</th>
-                    <th className="border p-1">الوحدة</th>
-                    <th className="border p-1">الكمية</th>
-                    {previewMode === 'invoice' && (
-                      <>
-                        <th className="border p-1">السعر</th>
-                        <th className="border p-1">الإجمالي</th>
-                      </>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {items
-                    .filter((it) => it.name.trim() || it.qty > 0)
-                    .map((it, i) => (
-                      <tr key={it.id}>
-                        <td className="border p-1 text-center">{i + 1}</td>
-                        <td className="border p-1 font-bold">{it.name}</td>
-                        <td className="border p-1 text-center">{it.unit || 'حبة'}</td>
-                        <td className="border p-1 text-center">{it.qty}</td>
-                        {previewMode === 'invoice' && (
-                          <>
-                            <td className="border p-1 text-center">{it.price}</td>
-                            <td className="border p-1 text-center font-bold">
-                              {(it.qty * it.price).toFixed(2)}
-                            </td>
-                          </>
-                        )}
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-            {previewMode === 'invoice' && (
-              <div className="flex justify-between font-extrabold text-[13px] bg-[#f9dfc6] p-2 border">
-                <span>الصافي المستحق:</span>
-                <span>
-                  {netTotal.toFixed(2)} {currency}
-                </span>
+
+            <div className="p-3 flex flex-col gap-2">
+              {[
+                ['الخصم', discountVal, setDiscountVal, false],
+                ['الضريبة', taxActive ? computedTax.toFixed(2) : taxVal, setTaxVal, taxActive],
+                ['المصاريف', expensesVal, setExpensesVal, false],
+              ].map(([label, val, setter, ro]) => (
+                <div key={String(label)} className="flex items-center gap-2">
+                  <span className="font-bold w-[80px] text-right">{label as string}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={val as string}
+                    readOnly={Boolean(ro)}
+                    onChange={(e) =>
+                      (
+                        setter as React.Dispatch<React.SetStateAction<string>>
+                      )(e.target.value)
+                    }
+                    className={`erp-field flex-1 text-center font-bold ${
+                      ro ? 'bg-[#eaeaea]' : 'bg-white'
+                    }`}
+                  />
+                </div>
+              ))}
+
+              <div className="flex items-center gap-2 border-t border-[#ccc] pt-2">
+                <span className="font-bold w-[80px] text-right">الصافي</span>
+                <input
+                  readOnly
+                  value={netTotal.toFixed(2)}
+                  className="erp-field flex-1 bg-[#eaeaea] text-center font-extrabold text-[#b00020]"
+                />
               </div>
-            )}
-            <div className="flex justify-center gap-3">
+
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1 flex-1">
+                  <span className="font-bold">مرات التعديل</span>
+                  <input
+                    readOnly
+                    value={editCount || ''}
+                    className="erp-field w-[44px] bg-[#eaeaea] text-center"
+                  />
+                </div>
+                <div className="flex items-center gap-1 flex-1">
+                  <span className="font-bold">مرات الطباعه</span>
+                  <input
+                    readOnly
+                    value={printCount || ''}
+                    className="erp-field w-[44px] bg-[#eaeaea] text-center"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[#e9edf4] border-t border-[#c5ccd8] px-3 py-2 flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => window.print()}
-                className="erp-classic-btn focused w-[130px] h-[30px]"
+                onClick={() => setExpensesOpen(false)}
+                className="erp-classic-btn w-[92px] h-[26px] font-bold focused"
               >
-                طباعة الآن
+                موافق
               </button>
               <button
                 type="button"
-                onClick={() => setPreviewMode('none')}
-                className="erp-classic-btn w-[110px] h-[30px]"
+                onClick={() => setExpensesOpen(false)}
+                className="erp-classic-btn w-[92px] h-[26px]"
               >
                 إغلاق
               </button>
@@ -2251,7 +3139,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
       {/* نموذج فاتورة (Template Picker + 14-Tab Template Editor) */}
       <InvoiceTemplatesPickerDialog
         open={tplPickerOpen}
-        title={shortWindowTitle(kindTitle)}
+        title={`نموذج ${shortWindowTitle(kindTitle)}`}
         zIndex={zIndex + 5}
         templates={invoiceTemplates}
         selectedId={selectedTplId}

@@ -667,7 +667,7 @@ export function createDefaultInvoiceTemplate(
       warnItemMin: false,
       cashEqualsNet: false,
       warnNoExpiryStock: false,
-      showPrevBalance: false,
+      showPrevBalance: true,
       showDuePeriod: false,
       confirmSaveMsg: false,
       showExtraPayType: false,
@@ -679,15 +679,15 @@ export function createDefaultInvoiceTemplate(
       showStatement: true,
       showDistributor: true,
       showSupplierBalance: true,
-      showAddress: false,
+      showAddress: true,
       showTaxNumber: false,
       ...(overrides?.general || {}),
     },
     columns: {
-      showUnit: true,
+      showUnit: false,
       showBalance: false,
       showQty2: false,
-      showBarcode: false,
+      showBarcode: true,
       showQtyMainUnit: false,
       showQtyFirstUnit: false,
       showQtySecondUnit: false,
@@ -696,9 +696,9 @@ export function createDefaultInvoiceTemplate(
       showShortages: false,
       useMainUnitsOnly: false,
       showTotalRight: false,
-      showBonus: false,
+      showBonus: true,
       showRowNotes: false,
-      showExpiry: false,
+      showExpiry: true,
       showItemSupplier: false,
       showItemType: false,
       showNetAmount: false,
@@ -739,8 +739,8 @@ export function createDefaultInvoiceTemplate(
       discountMode: 'disabled',
       defaultDiscountAccount: 'الخصم المسموح به',
       showDiscountAccount: false,
-      showDiscountPercent: false,
-      showDiscountAmount: false,
+      showDiscountPercent: true,
+      showDiscountAmount: true,
       maxDiscountPercentEnabled: false,
       maxDiscountPercent: 0,
       includeItemDiscount: false,
@@ -796,7 +796,7 @@ export function createDefaultInvoiceTemplate(
       useExtendedItemSearch: false,
       skipSubBarcodes: false,
       searchBarcodeSubstring: false,
-      hideItemCode: false,
+      hideItemCode: true,
       showItemForeignName: false,
       propGroup: false,
       propAgent: false,
@@ -1214,6 +1214,12 @@ export const INITIAL_STATE: ErpState = {
       gender: 'ذكر',
     },
   ],
+  designerSections: {
+    headerFirst: { rows: [], font: 'Tahoma, 10pt' },
+    headerRest: { rows: [], font: 'Tahoma, 10pt' },
+    footerRest: { rows: [], font: 'Tahoma, 10pt' },
+    footerLast: { rows: [], font: 'Tahoma, 10pt' },
+  },
   appointments: [
     {
       id: 'apt-1',
@@ -1239,12 +1245,56 @@ export const INITIAL_STATE: ErpState = {
 };
 
 export const STORAGE_KEY = 'badel_soft_pro_state_v1';
+export const STORAGE_VERSION = 2;
+const STORAGE_VERSION_KEY = 'badel_soft_pro_state_version';
 
 export function loadErpState(): ErpState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return INITIAL_STATE;
     const parsed = JSON.parse(raw) as Partial<ErpState>;
+    const storedVersion = Number(localStorage.getItem(STORAGE_VERSION_KEY) || '1');
+    let invoiceTemplates = parsed.invoiceTemplates?.length
+      ? parsed.invoiceTemplates
+      : DEFAULT_INVOICE_TEMPLATES;
+    if (storedVersion < 2) {
+      // ترقية مرة واحدة: إظهار أعمدة شاشة الفاتورة المطابقة للنموذج الأصلي
+      // في النموذج الافتراضي فقط، دون المساس بالنماذج المخصصة.
+      invoiceTemplates = invoiceTemplates.map((t) => {
+        if (!t.isDefault) return t;
+        const cols = t.columns || ({} as InvoiceTemplateConfig['columns']);
+        const disc =
+          t.discountsAndCommissions || ({} as InvoiceTemplateConfig['discountsAndCommissions']);
+        const extra = t.extraTabs || ({} as InvoiceTemplateConfig['extraTabs']);
+        const general = t.general || ({} as InvoiceTemplateConfig['general']);
+        return {
+          ...t,
+          general: {
+            ...general,
+            showPrevBalance: general.showPrevBalance === false ? true : general.showPrevBalance,
+            showAddress: general.showAddress === false ? true : general.showAddress,
+          },
+          columns: {
+            ...cols,
+            showBarcode: cols.showBarcode === false ? true : cols.showBarcode,
+            showBonus: cols.showBonus === false ? true : cols.showBonus,
+            showExpiry: cols.showExpiry === false ? true : cols.showExpiry,
+            showUnit: cols.showUnit === true ? false : cols.showUnit,
+          },
+          discountsAndCommissions: {
+            ...disc,
+            showDiscountPercent:
+              disc.showDiscountPercent === false ? true : disc.showDiscountPercent,
+            showDiscountAmount:
+              disc.showDiscountAmount === false ? true : disc.showDiscountAmount,
+          },
+          extraTabs: {
+            ...extra,
+            hideItemCode: extra.hideItemCode === false ? true : extra.hideItemCode,
+          },
+        };
+      });
+    }
     return {
       ...INITIAL_STATE,
       ...parsed,
@@ -1294,9 +1344,7 @@ export function loadErpState(): ErpState {
       reportTemplates: parsed.reportTemplates?.length
         ? parsed.reportTemplates
         : DEFAULT_REPORT_TEMPLATES,
-      invoiceTemplates: parsed.invoiceTemplates?.length
-        ? parsed.invoiceTemplates
-        : DEFAULT_INVOICE_TEMPLATES,
+      invoiceTemplates,
       invoices: Array.isArray(parsed.invoices) ? parsed.invoices : [],
       importedMaterials: Array.isArray(parsed.importedMaterials) ? parsed.importedMaterials : [],
       customAccounts: Array.isArray(parsed.customAccounts) ? parsed.customAccounts : [],
@@ -1327,6 +1375,16 @@ export function loadErpState(): ErpState {
       appointments: Array.isArray(parsed.appointments)
         ? parsed.appointments
         : INITIAL_STATE.appointments,
+      designerSections: {
+        headerFirst:
+          parsed.designerSections?.headerFirst || INITIAL_STATE.designerSections.headerFirst,
+        headerRest:
+          parsed.designerSections?.headerRest || INITIAL_STATE.designerSections.headerRest,
+        footerRest:
+          parsed.designerSections?.footerRest || INITIAL_STATE.designerSections.footerRest,
+        footerLast:
+          parsed.designerSections?.footerLast || INITIAL_STATE.designerSections.footerLast,
+      },
     };
   } catch {
     return INITIAL_STATE;
@@ -1336,6 +1394,7 @@ export function loadErpState(): ErpState {
 export function saveErpState(state: ErpState): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(STORAGE_VERSION_KEY, String(STORAGE_VERSION));
   } catch {
     // Ignore storage quota errors cleanly
   }

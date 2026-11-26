@@ -1007,6 +1007,7 @@ export default function App() {
         propsState={state.props}
         editingTemplate={editingReportTpl}
         isCreating={creatingReportTpl}
+        designerSections={state.designerSections}
         onFocus={() => focusWindow('pagesSetup')}
         onClose={() => closeWindow('pagesSetup')}
         onOpenFetchList={(cb) => {
@@ -1023,6 +1024,9 @@ export default function App() {
                 : [...prev.reportTemplates, tpl],
             };
           })
+        }
+        onSaveDesignerSections={(sections) =>
+          setState((prev) => ({ ...prev, designerSections: sections }))
         }
         onNotify={notify}
       />
@@ -1289,6 +1293,8 @@ export default function App() {
         warehouses={state.warehouses}
         currencies={state.currencies}
         reportTemplates={state.reportTemplates}
+        designerSections={state.designerSections}
+        companyProps={state.props}
         onFocus={() => focusWindow('invoices')}
         onClose={() => closeWindow('invoices')}
         onSaveInvoice={(inv) =>

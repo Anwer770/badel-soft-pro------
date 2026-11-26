@@ -2890,7 +2890,7 @@ interface InvoiceTemplatesPickerProps {
   employees?: EmployeeRecord[];
   onFocus: () => void;
   onClose: () => void;
-  onSelectTemplate: (id: string) => void;
+  onSelectTemplate: (id: string, tpl?: InvoiceTemplateConfig) => void;
   onSaveTemplates: (next: InvoiceTemplateConfig[]) => void;
   onShowMsg: (cfg: MsgConfig) => Promise<string>;
   onNotify: (msg: string) => void;
@@ -2991,7 +2991,7 @@ export const InvoiceTemplatesPickerDialog: React.FC<InvoiceTemplatesPickerProps>
               }}
               className="erp-classic-btn focused w-[115px] h-[28px]"
             >
-              موفق
+              موافق
             </button>
             <button
               type="button"
@@ -3079,7 +3079,7 @@ export const InvoiceTemplatesPickerDialog: React.FC<InvoiceTemplatesPickerProps>
           }
           onSaveTemplates(next);
           setPickedId(saved.id);
-          onSelectTemplate(saved.id);
+          onSelectTemplate(saved.id, saved);
           onNotify(`تم حفظ النموذج: ${saved.name}`);
         }}
         onNotify={onNotify}

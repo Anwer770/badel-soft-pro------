@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { PRINTERS_LIST } from '../data/erpDefaults';
-import type { GeneralPropsState, ReportTemplateItem } from '../types/erp';
+import type { DesignerSectionsState, GeneralPropsState, ReportTemplateItem } from '../types/erp';
 import { DraggableWindow } from './DraggableWindow';
 import {
   HeaderFooterDesignerDialog,
@@ -89,6 +89,7 @@ export const PrintSetupDialog: React.FC<PrintSetupDialogProps> = ({
   // Tab 2: خصائص الجدول
   const [orderBySelected, setOrderBySelected] = useState(false);
   const [showSerial, setShowSerial] = useState(false);
+  const [wrapItemName, setWrapItemName] = useState(false);
   const [availableCols, setAvailableCols] = useState<PrintColumnDef[]>(DEFAULT_AVAILABLE_COLUMNS);
   const [chosenCols, setChosenCols] = useState<PrintColumnDef[]>([]);
   const [selectedAvailId, setSelectedAvailId] = useState<string>('rec');
@@ -674,6 +675,15 @@ export const PrintSetupDialog: React.FC<PrintSetupDialogProps> = ({
                     إضافة الرقم التسلسلي إلى حقول الطباعة
                   </button>
                 </div>
+                <label className="flex items-center gap-2 text-[13px] font-bold cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={wrapItemName}
+                    onChange={(e) => setWrapItemName(e.target.checked)}
+                    className="w-4 h-4 accent-[#0078d7]"
+                  />
+                  <span>احتواء اسم المادة في أكثر من صف</span>
+                </label>
               </fieldset>
 
               <div className="flex-1 grid grid-cols-[260px_54px_1fr_56px] gap-2 items-stretch overflow-hidden">
@@ -912,10 +922,12 @@ interface SettingPagesDialogProps {
   propsState: GeneralPropsState;
   editingTemplate?: ReportTemplateItem | null;
   isCreating?: boolean;
+  designerSections?: DesignerSectionsState;
   onFocus: () => void;
   onClose: () => void;
   onOpenFetchList?: (onPicked: (tpl: ReportTemplateItem) => void) => void;
   onSaveTemplate?: (tpl: ReportTemplateItem) => void;
+  onSaveDesignerSections?: (sections: DesignerSectionsState) => void;
   onNotify: (msg: string) => void;
 }
 
@@ -940,10 +952,12 @@ export const SettingPagesDialog: React.FC<SettingPagesDialogProps> = ({
   propsState,
   editingTemplate,
   isCreating,
+  designerSections,
   onFocus,
   onClose,
   onOpenFetchList,
   onSaveTemplate,
+  onSaveDesignerSections,
   onNotify,
 }) => {
   const [sectionTab, setSectionTab] = useState<'header' | 'footer'>('header');
@@ -1004,6 +1018,18 @@ export const SettingPagesDialog: React.FC<SettingPagesDialogProps> = ({
       }
     }
   }, [open, editingTemplate, isCreating]);
+
+  // Persisted designs (global) take precedence over the local blank state
+  useEffect(() => {
+    if (open && designerSections) {
+      setSectionDesigns({
+        headerFirst: designerSections.headerFirst,
+        headerRest: designerSections.headerRest,
+        footerRest: designerSections.footerRest,
+        footerLast: designerSections.footerLast,
+      });
+    }
+  }, [open, designerSections]);
 
   const activeHeaderFrame = pageTab === 'rest' ? headerFrameRest : headerFrameFirst;
   const activeFooterFrame = pageTab === 'last' ? footerFrameLast : footerFrameRest;
@@ -1319,6 +1345,7 @@ export const SettingPagesDialog: React.FC<SettingPagesDialogProps> = ({
                     reportType,
                   });
                 }
+                onSaveDesignerSections?.(sectionDesigns);
                 onNotify(`تم حفظ نموذج الترويسة «${trimmed}»`);
                 onClose();
               }}
@@ -1520,10 +1547,12 @@ export const SettingPagesDialog: React.FC<SettingPagesDialogProps> = ({
           onFocus={onFocus}
           onClose={() => setDesignerTarget(null)}
           onSave={(data) => {
-            setSectionDesigns((prev) => ({
-              ...prev,
+            const next = {
+              ...sectionDesigns,
               [designerTarget.key]: data,
-            }));
+            };
+            setSectionDesigns(next);
+            onSaveDesignerSections?.(next);
             onNotify(`تم حفظ ${designerTarget.title}`);
           }}
         />

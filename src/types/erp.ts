@@ -245,6 +245,8 @@ export interface InvoiceLineItem {
   discPct?: number;
   discount?: number;
   expiryDate?: string;
+  /** مستودع السطر؛ إن كان فارغًا يُستخدم مستودع ترويسة الفاتورة. */
+  warehouse?: string;
 }
 
 export interface InvoiceRecord {
@@ -254,6 +256,7 @@ export interface InvoiceRecord {
   date: string;
   party: string;
   accountCode?: string;
+  contactName?: string;
   payType?: 'نقدي' | 'آجل' | 'شيك' | 'شبكة';
   docNumber?: string;
   address?: string;
@@ -564,6 +567,42 @@ export interface LicenseState {
   licenseCode: string;
 }
 
+export type DesignerColKey =
+  | 'attachBeforeR'
+  | 'attachAfterR'
+  | 'mmR'
+  | 'right'
+  | 'center'
+  | 'left'
+  | 'mmL'
+  | 'attachBeforeL'
+  | 'attachAfterL';
+
+export interface DesignerRow {
+  id: string;
+  attachBeforeR: string;
+  attachAfterR: string;
+  mmR: string;
+  right: string;
+  center: string;
+  left: string;
+  mmL: string;
+  attachBeforeL: string;
+  attachAfterL: string;
+}
+
+export interface DesignerSectionData {
+  rows: DesignerRow[];
+  font: string;
+}
+
+export interface DesignerSectionsState {
+  headerFirst: DesignerSectionData;
+  headerRest: DesignerSectionData;
+  footerRest: DesignerSectionData;
+  footerLast: DesignerSectionData;
+}
+
 export type AppointmentRepeat = 'none' | 'daily' | 'weekly' | 'monthly30' | 'yearly';
 
 export interface AppointmentItem {
@@ -657,6 +696,7 @@ export interface ErpState {
   alertDays?: { expiry: number; checks: number };
   currencies: CurrencyItem[];
   appointments: AppointmentItem[];
+  designerSections: DesignerSectionsState;
 }
 
 export interface ExtractedInvoiceData {
