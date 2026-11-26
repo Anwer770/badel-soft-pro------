@@ -106,3 +106,33 @@
 .erp-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #a6a6a6;
 }
+
+/* Print only the invoice preview paper, hide the rest of the app */
+@media print {
+  body.print-preview-open * {
+    visibility: hidden;
+  }
+  body.print-preview-open [data-print-preview],
+  body.print-preview-open [data-print-preview] * {
+    visibility: visible;
+  }
+  body.print-preview-open [data-print-preview] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    max-height: none;
+    margin: 0;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible;
+  }
+  body.print-preview-open .no-print {
+    display: none !important;
+  }
+  @page {
+    size: A4;
+    margin: 8mm;
+  }
+}
