@@ -240,6 +240,11 @@ export interface InvoiceLineItem {
   qty: number;
   price: number;
   cost: number;
+  barcode?: string;
+  bonus?: number;
+  discPct?: number;
+  discount?: number;
+  expiryDate?: string;
 }
 
 export interface InvoiceRecord {
@@ -248,6 +253,23 @@ export interface InvoiceRecord {
   number: string;
   date: string;
   party: string;
+  accountCode?: string;
+  payType?: 'نقدي' | 'آجل' | 'شيك' | 'شبكة';
+  docNumber?: string;
+  address?: string;
+  warehouse?: string;
+  distributor?: string;
+  costCenter?: string;
+  discount?: number;
+  tax?: number;
+  expenses?: number;
+  netTotal?: number;
+  cashPaid?: number;
+  networkPaid?: number;
+  printTemplateName?: string;
+  editCount?: number;
+  printCount?: number;
+  templateId?: string;
   currency: string;
   notes: string;
   items: InvoiceLineItem[];
@@ -256,6 +278,268 @@ export interface InvoiceRecord {
   by: string;
   posted?: boolean;
   postedAt?: string;
+}
+
+export interface InvoiceTemplateConfig {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  general: {
+    defaultPayType: '' | 'نقدي' | 'آجل';
+    defaultPayCode: string;
+    defaultCostCenter: string;
+    useDefaultCustomer: boolean;
+    defaultCustomer: string;
+    useDefaultCashAccount: boolean;
+    defaultCashAccount: string;
+    useDefaultNetworkAccount: boolean;
+    defaultNetworkAccount: string;
+    useDefaultDiscountAccount: boolean;
+    defaultDiscountAccount: string;
+    useDefaultWarehouse: boolean;
+    defaultWarehouse: string;
+    useDefaultCurrency: boolean;
+    defaultCurrency: string;
+    creditLimitRule: boolean;
+    creditLimitAmount: string;
+    creditLimitAction: string;
+    warnCustomerMax: boolean;
+    warnItemMin: boolean;
+    cashEqualsNet: boolean;
+    warnNoExpiryStock: boolean;
+    showPrevBalance: boolean;
+    showDuePeriod: boolean;
+    confirmSaveMsg: boolean;
+    showExtraPayType: boolean;
+    showMultiCustomersBtn: boolean;
+    showBalanceWithTotal: boolean;
+    preventSellAboveMax: boolean;
+    showDoc: boolean;
+    showName: boolean;
+    showStatement: boolean;
+    showDistributor: boolean;
+    showSupplierBalance: boolean;
+    showAddress: boolean;
+    showTaxNumber: boolean;
+  };
+  columns: {
+    showUnit: boolean;
+    showBalance: boolean;
+    showQty2: boolean;
+    showBarcode: boolean;
+    showQtyMainUnit: boolean;
+    showQtyFirstUnit: boolean;
+    showQtySecondUnit: boolean;
+    showFactor: boolean;
+    showLocation: boolean;
+    showShortages: boolean;
+    useMainUnitsOnly: boolean;
+    showTotalRight: boolean;
+    showBonus: boolean;
+    showRowNotes: boolean;
+    showExpiry: boolean;
+    showItemSupplier: boolean;
+    showItemType: boolean;
+    showNetAmount: boolean;
+    showRemainingBalance: boolean;
+    showLength: boolean;
+    showWidth: boolean;
+    showHeight: boolean;
+    showGross: boolean;
+    showTestGrade: boolean;
+    showLabName: boolean;
+    showSerial1: boolean;
+    showSerial2: boolean;
+    showPoNumber: boolean;
+    showPoBookNumber: boolean;
+    showPriceAfterTax: boolean;
+    showTotalAfterTax: boolean;
+    showLocalTotal: boolean;
+    showQtyWords: boolean;
+    showCount: boolean;
+    hideTotal: boolean;
+    hideQty: boolean;
+    extraSelect: string;
+  };
+  salesAndExpenses: {
+    salesAccountMode: 'single' | 'perItem';
+    defaultSalesAccount: string;
+    showSalesAccount: boolean;
+    expensesMode:
+      | 'salesItems'
+      | 'expenseAccounts'
+      | 'singleExpense'
+      | 'perLineExpense'
+      | 'disabled';
+    chargeSupplier: boolean;
+    specificPayAccount: boolean;
+    defaultExpenseAccount: string;
+    offsetExpenseAccount: string;
+    expenseCurrency: string;
+  };
+  discountsAndCommissions: {
+    discountMode: 'disabled' | 'perItemSingle' | 'totalSingle';
+    defaultDiscountAccount: string;
+    showDiscountAccount: boolean;
+    showDiscountPercent: boolean;
+    showDiscountAmount: boolean;
+    maxDiscountPercentEnabled: boolean;
+    maxDiscountPercent: number;
+    includeItemDiscount: boolean;
+    includeCustomerDiscount: boolean;
+    bonusDiscountModel: boolean;
+    commissionMode: 'disabled' | 'perItemAccount' | 'perItemSingle' | 'totalSingle';
+    defaultCommissionAccount: string;
+    defaultSalesRep: string;
+    showSalesRepAccount: boolean;
+    showCommissionsAccount: boolean;
+    chargeTotalAsCommission: boolean;
+  };
+  additional: {
+    showCostCenters: boolean;
+    lockDate: boolean;
+    lockInvoiceNumber: boolean;
+    lockBonus: boolean;
+    lockWarehouse: boolean;
+    lockPrice: boolean;
+    allowEditTotal: boolean;
+    warnDuplicateItem: boolean;
+    requireRef: boolean;
+    allowZeroInOutNote: boolean;
+    showPriceForEdit: boolean;
+    priceEditMode: string;
+    updateCostOnMove: boolean;
+    newRowOnEnter: boolean;
+    noCashInCredit: boolean;
+    showReturnBeforeOpening: boolean;
+    appendEnterBarcode: boolean;
+    linkLengthWidthUnit: boolean;
+    linkQtyLengthWidthCount: boolean;
+    multiplyTotalByDueDays: boolean;
+    useInvoicePriceOnUnitSwitch: boolean;
+  };
+  extraTabs: {
+    priceTier: string;
+    pricePercentOffset?: number;
+    belowPriceAction?: 'none' | 'warn' | 'block';
+    belowPriceRef?: string;
+    belowPricePercentOffset?: number;
+    useUnitPriceOnSale?: boolean;
+    useWholesaleForCredit?: boolean;
+    autoSavePrice: boolean;
+    searchMatchMode?: 'startsWith' | 'contains' | 'equals';
+    searchByBarcode: boolean;
+    searchByCode: boolean;
+    searchByName: boolean;
+    searchByForeignName?: boolean;
+    searchByCardNo?: boolean;
+    useExtendedItemSearch?: boolean;
+    skipSubBarcodes?: boolean;
+    searchBarcodeSubstring?: boolean;
+    hideItemCode?: boolean;
+    showItemForeignName?: boolean;
+    propGroup?: boolean;
+    propAgent?: boolean;
+    propScientific?: boolean;
+    propForm?: boolean;
+    propCol?: boolean;
+    propRow?: boolean;
+    taxMode?: 'disabled' | 'perItemIndependent' | 'perItemSingle' | 'totalSingle';
+    defaultTaxAccount?: string;
+    showTaxAccount?: boolean;
+    showTaxPercent?: boolean;
+    showTaxAmount?: boolean;
+    includeItemTaxRate?: boolean;
+    skipTaxEntry?: boolean;
+    enableTax: boolean;
+    taxPercent: number;
+    taxInclusive: boolean;
+    allowedUsers: string;
+    selectedUsers?: string[];
+    medicalBatchMode: boolean;
+    medicalTemplate?: boolean;
+    medicalShowCount?: boolean;
+    medicalAllowEditAfterTest?: boolean;
+    scalePrefix: string;
+    scaleWeightDigits: number;
+    autoPrintOnSave: boolean;
+    printCopies: number;
+    rowHeight: number;
+    zebraRows: boolean;
+  };
+  printProps?: InvoicePrintPropsConfig;
+  tableColumns?: InvoiceTableColumnConfig[];
+  scaleProps?: InvoiceScalePropsConfig;
+  windowProps?: InvoiceWindowPropsConfig;
+}
+
+export interface InvoiceScalePropsConfig {
+  isScaleItem: boolean;
+  scaleItemPrefix: string;
+  itemCodeDigits: string;
+  priceOrQtyDigits: string;
+  priceDecimalDigits: string;
+  valueMode: 'price' | 'qty';
+  scalePriceIncludesTax: boolean;
+  fixQtyToOne: boolean;
+}
+
+export interface InvoiceTableFontConfig {
+  fontFamily: string;
+  fontStyle: 'Regular' | 'Bold' | 'Oblique' | 'Bold Oblique';
+  fontSize: number;
+  strikeout: boolean;
+  underline: boolean;
+  color: string;
+  script: 'Western' | 'Arabic';
+}
+
+export interface InvoiceWindowPropsConfig {
+  maximizeWindow: boolean;
+  windowCaptionText: string;
+  defaultGroup: string;
+  showDefaultSectionOnly: boolean;
+  tableFont: InvoiceTableFontConfig;
+  windowBgColor: string;
+  savePanelColor: string;
+  itemsPanelCols: string;
+  itemsPanelRows: string;
+  dontFitAllColumns: boolean;
+  useTemplateNameAsTitle: boolean;
+  hideTopPanel: boolean;
+  hideBottomPanel: boolean;
+  hideAccountsPanel: boolean;
+  showItemsPanelTiles: boolean;
+  showNumbersPadTiles: boolean;
+  showSaveButtonTiles: boolean;
+  invoiceRowHeight: string;
+  accountsRowHeight: string;
+  saveButtonRowHeight: string;
+}
+
+export interface InvoicePrintPropsConfig {
+  defaultPrinter: string;
+  printer2: string;
+  printTemplate: string;
+  customerPrintTemplate: string;
+  printOnSaveMode: '' | 'none' | 'prompt' | 'auto';
+  singlePageOnly: boolean;
+  noPrintDirectGroupInvoice: boolean;
+  noPrintDepartmentInvoice: boolean;
+  noPrintCustomerInvoice: boolean;
+  showItemsInCustomerInvoice: boolean;
+  groupTitle: string;
+  lockAccountInCash: boolean;
+  printSeparatePerDepartment: boolean;
+}
+
+export interface InvoiceTableColumnConfig {
+  id: string;
+  name: string;
+  defaultWidth: number;
+  altName: string;
+  foreignName: string;
+  width: string;
 }
 
 export interface ImportedMaterialItem {
@@ -351,6 +635,7 @@ export interface ErpState {
   journal: JournalEntry[];
   journalOptions: JournalOptionsState;
   reportTemplates: ReportTemplateItem[];
+  invoiceTemplates: InvoiceTemplateConfig[];
   invoices: InvoiceRecord[];
   importedMaterials: ImportedMaterialItem[];
   customAccounts: CustomAccountRecord[];

@@ -1278,7 +1278,17 @@ export default function App() {
         launch={invoiceLaunch}
         zIndex={zOrder.invoices}
         currentUser={state.currentUser}
+        users={state.users}
+        materialGroups={state.materialGroups}
+        employees={state.employees}
         invoices={state.invoices}
+        invoiceTemplates={state.invoiceTemplates}
+        importedMaterials={state.importedMaterials}
+        customAccounts={state.customAccounts}
+        costCenters={state.costCenters}
+        warehouses={state.warehouses}
+        currencies={state.currencies}
+        reportTemplates={state.reportTemplates}
         onFocus={() => focusWindow('invoices')}
         onClose={() => closeWindow('invoices')}
         onSaveInvoice={(inv) =>
@@ -1297,6 +1307,9 @@ export default function App() {
             ...prev,
             invoices: prev.invoices.filter((x) => x.id !== id),
           }))
+        }
+        onSaveInvoiceTemplates={(invoiceTemplates) =>
+          setState((prev) => ({ ...prev, invoiceTemplates }))
         }
         onOpenAiInvoiceScan={() => {
           setAiInitialTab('analyze');
