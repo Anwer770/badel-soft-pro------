@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { PRINTERS_LIST } from '../data/erpDefaults';
-import type { DesignerSectionsState, GeneralPropsState, ReportTemplateItem } from '../types/erp';
+import type {
+  DesignerSectionsState,
+  GeneralPropsState,
+  PrintSetupState,
+  ReportTemplateItem,
+} from '../types/erp';
 import { DraggableWindow } from './DraggableWindow';
 import {
   HeaderFooterDesignerDialog,
@@ -31,6 +36,8 @@ interface PrintSetupDialogProps {
   open: boolean;
   zIndex: number;
   templates: ReportTemplateItem[];
+  setup?: PrintSetupState;
+  onSaveSetup?: (setup: PrintSetupState) => void;
   onFocus: () => void;
   onClose: () => void;
   onOpenPages: (opts?: { isCreating: boolean; template?: ReportTemplateItem | null }) => void;
@@ -41,6 +48,8 @@ export const PrintSetupDialog: React.FC<PrintSetupDialogProps> = ({
   open,
   zIndex,
   templates,
+  setup,
+  onSaveSetup,
   onFocus,
   onClose,
   onOpenPages,
@@ -94,6 +103,42 @@ export const PrintSetupDialog: React.FC<PrintSetupDialogProps> = ({
   const [chosenCols, setChosenCols] = useState<PrintColumnDef[]>([]);
   const [selectedAvailId, setSelectedAvailId] = useState<string>('rec');
   const [selectedChosenId, setSelectedChosenId] = useState<string>('');
+
+  // تحميل الإعدادات المحفوظة كلما فُتحت النافذة
+  useEffect(() => {
+    if (!open || !setup) return;
+    setSelectedModel(setup.selectedModel || 'form1');
+    setModels((prev) => (prev.includes(setup.selectedModel) ? prev : [...prev, setup.selectedModel]));
+    setCopies(setup.copies);
+    setMarginTop(setup.marginTop);
+    setMarginLeft(setup.marginLeft);
+    setMarginBottom(setup.marginBottom);
+    setMarginRight(setup.marginRight);
+    setPageFrame(setup.pageFrame);
+    setTblHdrStyle(setup.tblHdrStyle);
+    setCellMarginTop(setup.cellMarginTop);
+    setCellMarginRight(setup.cellMarginRight);
+    setTitleFont(setup.titleFont);
+    setTitleHeightRatio(setup.titleHeightRatio);
+    setTableFont(setup.tableFont);
+    setTableHeightRatio(setup.tableHeightRatio);
+    setTotalFont(setup.totalFont);
+    setTotalHeightRatio(setup.totalHeightRatio);
+    setPrintDir(setup.printDir);
+    setLtrTable(setup.ltrTable);
+    setFooterAfterTable(setup.footerAfterTable);
+    setPrintTableColors(setup.printTableColors);
+    setPrinter(setup.printer);
+    setSpecialTemplateName(setup.specialTemplateName);
+    setCenterSpecialHeader(setup.centerSpecialHeader);
+    setCenterSpecialFooter(setup.centerSpecialFooter);
+    setSharedTemplateName(setup.sharedTemplateName);
+    setCenterSharedHeader(setup.centerSharedHeader);
+    setCenterSharedFooter(setup.centerSharedFooter);
+    setOrderBySelected(setup.orderBySelected);
+    setShowSerial(setup.showSerial);
+    setWrapItemName(setup.wrapItemName);
+  }, [open, setup]);
 
   const specialOptions = useMemo(
     () =>
@@ -217,7 +262,41 @@ export const PrintSetupDialog: React.FC<PrintSetupDialogProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => onNotify(`تم حفظ إعدادات النموذج (${selectedModel})`)}
+            onClick={() => {
+              onSaveSetup?.({
+                copies,
+                marginTop,
+                marginLeft,
+                marginBottom,
+                marginRight,
+                pageFrame,
+                tblHdrStyle,
+                cellMarginTop,
+                cellMarginRight,
+                titleFont,
+                titleHeightRatio,
+                tableFont,
+                tableHeightRatio,
+                totalFont,
+                totalHeightRatio,
+                printDir,
+                ltrTable,
+                footerAfterTable,
+                printTableColors,
+                printer,
+                specialTemplateName,
+                centerSpecialHeader,
+                centerSpecialFooter,
+                sharedTemplateName,
+                centerSharedHeader,
+                centerSharedFooter,
+                orderBySelected,
+                showSerial,
+                wrapItemName,
+                selectedModel,
+              });
+              onNotify(`تم حفظ إعدادات النموذج (${selectedModel})`);
+            }}
             className="erp-classic-btn h-[28px] w-[90px] text-[12px]"
           >
             حفظ

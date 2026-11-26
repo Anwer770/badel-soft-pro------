@@ -7,6 +7,7 @@ interface TitleBarProps {
   onClose?: () => void;
   onDragStart?: (e: React.PointerEvent<HTMLDivElement>) => void;
   isMain?: boolean;
+  logo?: string;
 }
 
 export function AppWindowIcon() {
@@ -26,6 +27,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   onClose,
   onDragStart,
   isMain = false,
+  logo,
 }) => {
   return (
     <div
@@ -39,7 +41,16 @@ export const TitleBar: React.FC<TitleBarProps> = ({
       } ${isMain ? '' : 'bg-gradient-to-b from-white to-[#edf1fa]'}`}
     >
       <div className="flex items-center gap-2 min-w-0">
-        <AppWindowIcon />
+        {logo ? (
+          <img
+            src={logo}
+            alt="شعار الشركة"
+            referrerPolicy="no-referrer"
+            className="h-[24px] w-auto max-w-[80px] object-contain"
+          />
+        ) : (
+          <AppWindowIcon />
+        )}
         <span className="text-[13px] font-semibold text-black truncate">{title}</span>
       </div>
       <div className="flex-1" />

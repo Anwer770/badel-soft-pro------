@@ -5,6 +5,8 @@ import type {
   CurrencyItem,
   DesignerSectionData,
   DesignerSectionsState,
+  InventorySheetRecord,
+  PrintSetupState,
   CustomAccountRecord,
   EmployeeRecord,
   ErpUser,
@@ -21,6 +23,7 @@ import type {
 import { DraggableWindow } from './DraggableWindow';
 import { InvoiceTemplatesPickerDialog } from './InvoiceTemplateDialogs';
 import { renderDesignerTokenPreview } from './HeaderFooterDesignerDialog';
+import { InventorySheetDialog } from './InventorySheetDialog';
 import { amountToArabicWords } from '../utils/arabicNumberToWords';
 
 const designerFontStyle = (font?: string): React.CSSProperties => {
@@ -53,12 +56,17 @@ interface InvoicesDialogProps {
   currencies: CurrencyItem[];
   reportTemplates?: ReportTemplateItem[];
   designerSections?: DesignerSectionsState;
+  inventorySheets?: InventorySheetRecord[];
+  printSetup?: PrintSetupState;
   companyProps?: GeneralPropsState;
   onFocus: () => void;
   onClose: () => void;
   onSaveInvoice: (inv: InvoiceRecord) => void;
   onDeleteInvoice: (id: string) => void;
   onSaveInvoiceTemplates: (next: InvoiceTemplateConfig[]) => void;
+  onSaveInventorySheet?: (sheet: InventorySheetRecord) => void;
+  onDeleteInventorySheet?: (id: string) => void;
+  onApproveInventorySheet?: (sheet: InventorySheetRecord) => void;
   onOpenAiInvoiceScan: () => void;
   onOpenPrint: () => void;
   onShowMsg: (cfg: MsgConfig) => Promise<string>;
@@ -166,6 +174,11 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
   currencies,
   reportTemplates = [],
   designerSections,
+  inventorySheets = [],
+  printSetup,
+  onSaveInventorySheet,
+  onDeleteInventorySheet,
+  onApproveInventorySheet,
   companyProps,
   onFocus,
   onClose,
@@ -188,7 +201,21 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
   const [tplPickerOpen, setTplPickerOpen] = useState(false);
   const [kindMenuOpen, setKindMenuOpen] = useState(false);
   const [expensesOpen, setExpensesOpen] = useState(false);
+  const [profitSettingsOpen, setProfitSettingsOpen] = useState(false);
+  const [profitItemName, setProfitItemName] = useState('');
+  const [profitFullPeriod, setProfitFullPeriod] = useState(true);
+  const [profitFrom, setProfitFrom] = useState('');
+  const [profitTo, setProfitTo] = useState('');
+  const [profitCostBasis, setProfitCostBasis] = useState('السعر الوسيط (الكلفة)');
+  const [profitCounterAccount, setProfitCounterAccount] = useState('');
+  const [profitAmount1, setProfitAmount1] = useState('');
+  const [profitAmount2, setProfitAmount2] = useState('');
+  const [profitWarehouse, setProfitWarehouse] = useState('كافة المستودعات');
+  const [profitShowPrice, setProfitShowPrice] = useState(false);
+  const [profitShowQty, setProfitShowQty] = useState(false);
+  const [profitShowCostPrice, setProfitShowCostPrice] = useState(false);
   const [includeBonusInCost, setIncludeBonusInCost] = useState(true);
+  const [returnFromOpening, setReturnFromOpening] = useState(false);
 
   // Header fields
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -274,11 +301,17 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
       setCurrency(tpl.general.useDefaultCurrency ? tpl.general.defaultCurrency : 'ريال يمني');
       setCostCenter(tpl.general.defaultCostCenter || '');
       setItems(makeInitialLines());
-      const isPurchase = nextLaunch.kindTitle.includes('مشتريات') || nextLaunch.kindTitle.includes('شراء');
+      const isPurchase =
+        nextLaunch.kindTitle.includes('مشتريات') || nextLaunch.kindTitle.includes('شراء');
+      const isReturnLaunch = nextLaunch.kindTitle.includes('مردود');
       setSalesAccount(
-        isPurchase
-          ? 'المشتريات'
-          : tpl.salesAndExpenses.defaultSalesAccount || 'المبيعات'
+        isReturnLaunch
+          ? nextLaunch.kindTitle.includes('مبيعات')
+            ? 'مردودات المبيعات'
+            : 'مردود مشتريات'
+          : isPurchase
+            ? 'المشتريات'
+            : tpl.salesAndExpenses.defaultSalesAccount || 'المبيعات'
       );
       setCashAccount(tpl.general.defaultCashAccount || 'الصندوق');
       setDiscountAccount(tpl.general.defaultDiscountAccount || 'الخصم المسموح به');
@@ -291,6 +324,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
       setPrintCount(0);
       setNotes('');
       setDistributor('');
+      setReturnFromOpening(false);
       setConfirmSaveOpen(false);
     },
     [invoices.length, warehouses]
@@ -320,8 +354,13 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
   }, [open, launch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyTemplate = (tplId: string, tplObj?: InvoiceTemplateConfig) => {
-    setSelectedTplId(tplId);
     const t = tplObj || invoiceTemplates.find((x) => x.id === tplId);
+    const allowed = t?.extraTabs.selectedUsers || [];
+    if (t && allowed.length > 0 && !allowed.includes(currentUser)) {
+      onNotify(`النموذج «${t.name}» مخصص للمستخدمين: ${allowed.join('، ')}`);
+      return;
+    }
+    setSelectedTplId(tplId);
     if (!t) return;
     setPayType(t.general.defaultPayType || 'آجل');
     if (t.general.useDefaultCustomer) setParty(t.general.defaultCustomer);
@@ -383,10 +422,48 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
       notes?.trim() || `فاتورة ${shortWindowTitle(kindTitle)} برقم ${invNumber}`,
     '[إسم الشركة]': companyProps?.hdrArName || companyProps?.company || 'بديل سوفت',
   };
+  const isPlainSales = shortWindowTitle(kindTitle) === 'مبيعات';
   const isSalesDoc = shortWindowTitle(kindTitle).includes('مبيعات');
-  const showBarcodeCol = activeTpl.columns.showBarcode && isSalesDoc;
-  const showCodeCol = !activeTpl.extraTabs.hideItemCode && !isSalesDoc;
-  const showLineWarehouseCol = isSalesDoc;
+  const isReturnDoc = kindTitle.includes('مردود');
+  const isSimpleDoc =
+    kindTitle.includes('حجز') ||
+    kindTitle.includes('عرض أسعار') ||
+    kindTitle.includes('طلب شراء');
+  const isNoteDoc = kindTitle.includes('مذكرة ادخال') || kindTitle.includes('مذكرة اخراج');
+  // أعمدة الشبكة تتبع «إظهار الحقول» في قالب الفاتورة (الباركود والرمز متبادلان)
+  const showBarcodeCol = Boolean(activeTpl.columns.showBarcode);
+  const showCodeCol = !activeTpl.columns.showBarcode && !activeTpl.extraTabs.hideItemCode;
+  const showLineWarehouseCol =
+    Boolean(activeTpl.columns.showLineWarehouse) && !isSimpleDoc;
+  const colWidthPx = (id: string, fallback: string) => {
+    const raw = activeTpl.tableColumns?.find((c) => c.id === id)?.width?.trim();
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) && n > 0 ? `${n}px` : fallback;
+  };
+  const ps = printSetup;
+  const pageFrameClass =
+    ps?.pageFrame === 'single'
+      ? 'border-2 border-black'
+      : ps?.pageFrame === 'double'
+        ? 'border-4 border-double border-black'
+        : 'border border-[#555]';
+  const headBgClass =
+    ps?.tblHdrStyle === 'white'
+      ? 'bg-white'
+      : ps?.tblHdrStyle === 'black'
+        ? 'bg-black text-white'
+        : 'bg-[#d9d9d9]';
+  const designerFontStyle2 = (font: string | undefined, fallbackPx: number): React.CSSProperties => {
+    if (!font) return { fontSize: `${fallbackPx}px` };
+    const family = (font.split(',')[0] || 'Tahoma').trim();
+    const sizeMatch = font.match(/(\d+(?:\.\d+)?)\s*pt/);
+    const bold = /bold/i.test(font);
+    return {
+      fontFamily: `${family}, Tahoma, sans-serif`,
+      fontSize: sizeMatch ? `${(parseFloat(sizeMatch[1]) * 1.333).toFixed(1)}px` : `${fallbackPx}px`,
+      fontWeight: bold ? 'bold' : undefined,
+    };
+  };
   const stampText = (() => {
     const d = new Date();
     const p2 = (n: number) => String(n).padStart(2, '0');
@@ -620,6 +697,79 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
     setMaterialRowPicker(null);
   };
 
+  const exportPdf = async () => {
+    const sheet = document.querySelector('[data-print-preview]') as HTMLElement | null;
+    if (!sheet) {
+      onNotify('لا توجد ورقة للمعاينة لتصديرها');
+      return;
+    }
+    try {
+      onNotify('جارٍ تجهيز ملف PDF…');
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas-pro'),
+        import('jspdf'),
+      ]);
+      const canvas = await html2canvas(sheet, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false,
+      });
+      const landscape = ps?.printDir === 'عرضي';
+      const pdf = new jsPDF({
+        orientation: landscape ? 'landscape' : 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const ml = Number(ps?.marginLeft ?? 8);
+      const mr = Number(ps?.marginRight ?? 8);
+      const mt = Number(ps?.marginTop ?? 8);
+      const mb = Number(ps?.marginBottom ?? 8);
+      const availW = pageW - ml - mr;
+      const availH = pageH - mt - mb;
+      const imgH = (canvas.height * availW) / canvas.width;
+      const pagesPerCopy = Math.max(1, Math.ceil((imgH - 0.5) / availH));
+      const copies = Math.max(1, Math.min(9, Number(ps?.copies) || 1));
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      let first = true;
+      for (let c = 0; c < copies; c += 1) {
+        for (let p = 0; p < pagesPerCopy; p += 1) {
+          if (!first) pdf.addPage();
+          first = false;
+          pdf.addImage(imgData, 'JPEG', ml, mt - p * availH, availW, imgH);
+        }
+      }
+      const safe = `${shortWindowTitle(kindTitle)}-${invNumber || 'invoice'}`.replace(
+        /[\\/:*?"<>|]+/g,
+        '-'
+      );
+      pdf.save(`${safe}.pdf`);
+      onNotify(`تم تصدير الملف ${safe}.pdf`);
+    } catch (err) {
+      console.error(err);
+      onNotify('تعذّر توليد PDF — استخدم زر «طباعة» ثم اختر «حفظ كملف PDF»');
+    }
+  };
+
+  const printWithCopies = () => {
+    const copies = Math.max(1, Math.min(9, Number(ps?.copies) || 1));
+    const sheet = document.querySelector('[data-print-preview]') as HTMLElement | null;
+    const made: HTMLElement[] = [];
+    if (sheet && copies > 1 && sheet.parentElement) {
+      for (let i = 1; i < copies; i += 1) {
+        const clone = sheet.cloneNode(true) as HTMLElement;
+        clone.classList.add('print-copy-extra');
+        clone.removeAttribute('data-print-preview');
+        sheet.parentElement.appendChild(clone);
+        made.push(clone);
+      }
+    }
+    window.print();
+    window.setTimeout(() => made.forEach((n) => n.remove()), 1500);
+  };
+
   const confirmAndPersistSave = useCallback(
     async (forcePrint: boolean, cashOverride?: string, netOverride?: string, printTplOverride?: string) => {
       const validItems = items.filter((it) => it.name.trim() || it.code.trim() || it.price > 0);
@@ -670,8 +820,13 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
       setConfirmSaveOpen(false);
       onNotify(`تم حفظ ${shortWindowTitle(kindTitle)} رقم ${record.number}`);
       const printMode = activeTpl.printProps?.printOnSaveMode || 'none';
+      const runPrint = () => {
+        setPrintCount((c) => c + 1);
+        setPreviewMode('invoice');
+        window.setTimeout(() => printWithCopies(), 450);
+      };
       if (forcePrint || printMode === 'auto' || activeTpl.extraTabs.autoPrintOnSave) {
-        window.print();
+        runPrint();
       } else if (printMode === 'prompt') {
         const wantPrint = await onShowMsg({
           title: 'طباعة الفاتورة',
@@ -683,7 +838,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
           ],
         });
         if (wantPrint === 'yes') {
-          window.print();
+          runPrint();
         }
       }
       resetFormForLaunch(launch, activeTpl);
@@ -868,9 +1023,52 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
   };
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  const profitSource = kindTitle.includes('اليوم')
+  const profitSource = (kindTitle.includes('اليوم')
     ? invoices.filter((i) => i.date === todayStr)
-    : invoices;
+    : invoices
+  ).filter((inv) => {
+    if (profitWarehouse !== 'كافة المستودعات' && (inv.warehouse || '') !== profitWarehouse) {
+      return false;
+    }
+    if (!profitFullPeriod) {
+      if (profitFrom && inv.date < profitFrom) return false;
+      if (profitTo && inv.date > profitTo) return false;
+    }
+    return true;
+  });
+
+  const profitRows = profitSource.flatMap((inv) =>
+    inv.items
+      .filter((it) => !profitItemName.trim() || it.name.includes(profitItemName.trim()))
+      .map((it) => {
+        const qty = Number(it.qty) || 0;
+        const cost = qty * (Number(it.cost) || 0);
+        const total = Math.max(0, qty * (Number(it.price) || 0) - (Number(it.discount) || 0));
+        const profit = total - cost;
+        return {
+          id: `${inv.id}-${it.id}`,
+          number: inv.number,
+          date: inv.date,
+          code: it.code,
+          name: it.name,
+          qty,
+          price: Number(it.price) || 0,
+          costPrice: Number(it.cost) || 0,
+          cost,
+          total,
+          profit,
+          pct: cost > 0 ? (profit / cost) * 100 : 0,
+        };
+      })
+  );
+  const profitTotals = profitRows.reduce(
+    (acc, r) => ({
+      cost: acc.cost + r.cost,
+      total: acc.total + r.total,
+      profit: acc.profit + r.profit,
+    }),
+    { cost: 0, total: 0, profit: 0 }
+  );
 
   const wp = activeTpl.windowProps;
   const baseTitle = wp?.useTemplateNameAsTitle
@@ -882,8 +1080,11 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
     ? `${baseTitle} - ${wp.windowCaptionText.trim()}`
     : baseTitle;
 
-  const labelTypeAccount =
-    kindTitle.includes('مشتريات') || kindTitle.includes('شراء') ? 'ح/مشتريات' : `ح/${shortWindowTitle(kindTitle)}`;
+  const labelTypeAccount = kindTitle.includes('مردود')
+    ? `ح/${shortWindowTitle(kindTitle)}`
+    : kindTitle.includes('مشتريات') || kindTitle.includes('شراء')
+      ? 'ح/مشتريات'
+      : `ح/${shortWindowTitle(kindTitle)}`;
   const fetchWindowTitle = kindTitle.includes('مردود مبيعات')
     ? 'فواتير مردود المبيعات'
     : kindTitle.includes('مردود مشتريات')
@@ -893,6 +1094,27 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
         : kindTitle.includes('مبيعات')
           ? 'فواتير المبيعات'
           : `فواتير ${shortWindowTitle(kindTitle)}`;
+
+  if (open && kindTitle.includes('جرد')) {
+    return (
+      <InventorySheetDialog
+        open={open}
+        zIndex={zIndex}
+        title={kindTitle}
+        kind={kindTitle.includes('فتتاحي') ? 'opening' : 'adjust'}
+        warehouses={warehouses}
+        sheets={inventorySheets}
+        materials={importedMaterials}
+        currentUser={currentUser}
+        onSaveSheet={onSaveInventorySheet}
+        onDeleteSheet={onDeleteInventorySheet}
+        onApproveSheet={onApproveInventorySheet}
+        onFocus={onFocus}
+        onClose={onClose}
+        onNotify={onNotify}
+      />
+    );
+  }
 
   return (
     <>
@@ -987,7 +1209,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                       onChange={(e) => setPartyCode(e.target.value)}
                       className="erp-field w-[135px] bg-[#eaeaea] text-center font-bold"
                     />
-                    {isSalesDoc && (
+                    {isPlainSales && (
                       <label className="flex items-center gap-1 font-bold cursor-pointer">
                         <input
                           type="checkbox"
@@ -997,6 +1219,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                         <span>شبكة</span>
                       </label>
                     )}
+                    {!isSimpleDoc && (
                     <fieldset className="border border-[#c5ccd8] px-2 pb-1 pt-0.5 flex items-center gap-1">
                       <legend className="text-[11px] font-bold px-1">نوع الفاتورة</legend>
                       <select
@@ -1012,23 +1235,28 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                         <option value="شبكة">شبكة</option>
                       </select>
                     </fieldset>
-                    <span className="font-bold">العملة</span>
-                    <select
-                      value={currency}
-                      onChange={(e) => setCurrency(e.target.value)}
-                      className="erp-field w-[92px] bg-white font-bold text-center"
-                    >
-                      {currencies.map((c) => (
-                        <option key={c.code} value={c.name}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      readOnly
-                      value={currencyRate}
-                      className="erp-field w-[46px] bg-[#eaeaea] text-center font-bold"
-                    />
+                    )}
+                    {!isSimpleDoc && (
+                      <>
+                        <span className="font-bold">العملة</span>
+                        <select
+                          value={currency}
+                          onChange={(e) => setCurrency(e.target.value)}
+                          className="erp-field w-[92px] bg-white font-bold text-center"
+                        >
+                          {currencies.map((c) => (
+                            <option key={c.code} value={c.name}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          readOnly
+                          value={currencyRate}
+                          className="erp-field w-[46px] bg-[#eaeaea] text-center font-bold"
+                        />
+                      </>
+                    )}
                   </div>
 
                   {/* Row 2: الرقم + التاريخ + الاسم + بحث + لمستند + العنوان */}
@@ -1049,7 +1277,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                       className="erp-field w-[124px] bg-white text-center"
                       dir="ltr"
                     />
-                    {activeTpl.general.showName && (
+                    {activeTpl.general.showName && !isSimpleDoc && (
                       <>
                         <span className="font-bold">الاسم</span>
                         <input
@@ -1073,7 +1301,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                     >
                       بحث
                     </button>
-                    {activeTpl.general.showDoc && (
+                    {activeTpl.general.showDoc && !isSimpleDoc && (
                       <>
                         <span className="font-bold">لمستند</span>
                         <input
@@ -1083,7 +1311,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                         />
                       </>
                     )}
-                    {activeTpl.general.showAddress && (
+                    {activeTpl.general.showAddress && !isSimpleDoc && (
                       <>
                         <span className="font-bold">العنوان</span>
                         <input
@@ -1144,7 +1372,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                         </select>
                       </div>
                     )}
-                    {!isSalesDoc && (
+                    {!isReturnDoc && kindTitle.includes('مشتريات') && (
                       <>
                         <label className="flex items-center gap-1.5 font-bold cursor-pointer">
                           <input
@@ -1172,8 +1400,18 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                   </div>
                 </div>
 
-                {/* Left side of Header: نواقص المواد */}
-                <div className="flex items-center justify-end pl-4">
+                {/* Left side of Header: المردود من قبل الأرصدة الإفتتاحية + نواقص المواد */}
+                <div className="flex items-center justify-end gap-4 pl-4">
+                  {isReturnDoc && (
+                    <label className="flex items-center gap-1.5 font-bold cursor-pointer whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={returnFromOpening}
+                        onChange={(e) => setReturnFromOpening(e.target.checked)}
+                      />
+                      <span>المردود من قبل الأرصدة الإفتتاحية</span>
+                    </label>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShortagesOpen(true)}
@@ -1216,12 +1454,18 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                                 {colLabel('del', 'حذف')}
                               </th>
                               {showBarcodeCol && (
-                                <th className="py-1 px-2 border-l border-[#666] w-[92px]">
+                                <th
+                                  style={{ width: colWidthPx('barcode', '92px') }}
+                                  className="py-1 px-2 border-l border-[#666]"
+                                >
                                   {colLabel('barcode', 'الباركود')}
                                 </th>
                               )}
                               {showCodeCol && (
-                                <th className="py-1 px-2 border-l border-[#666] w-[75px]">
+                                <th
+                                  style={{ width: colWidthPx('code', '75px') }}
+                                  className="py-1 px-2 border-l border-[#666]"
+                                >
                                   {colLabel('code', 'الرمز')}
                                 </th>
                               )}
@@ -1229,7 +1473,10 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                                 {colLabel('item', 'المادة')}
                               </th>
                               {showLineWarehouseCol && (
-                                <th className="py-1 px-2 border-l border-[#666] w-[82px]">
+                                <th
+                                  style={{ width: colWidthPx('warehouse', '82px') }}
+                                  className="py-1 px-2 border-l border-[#666]"
+                                >
                                   {colLabel('warehouse', 'مستود')}
                                 </th>
                               )}
@@ -1238,12 +1485,12 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                                   {colLabel('qty', 'الكمية')}
                                 </th>
                               )}
-                              {activeTpl.columns.showUnit && (
+                              {activeTpl.columns.showUnit && !isSimpleDoc && (
                                 <th className="py-1 px-2 border-l border-[#666] w-[78px]">
                                   {colLabel('unit', 'الوحدة')}
                                 </th>
                               )}
-                              {activeTpl.columns.showBonus && (
+                              {activeTpl.columns.showBonus && !isSimpleDoc && (
                                 <th className="py-1 px-2 border-l border-[#666] w-[66px]">
                                   {colLabel('bonus', 'البونص')}
                                 </th>
@@ -1256,17 +1503,17 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                                   {colLabel('total', 'الإجمالي')}
                                 </th>
                               )}
-                              {activeTpl.discountsAndCommissions.showDiscountPercent && (
+                              {activeTpl.discountsAndCommissions.showDiscountPercent && !isSimpleDoc && (
                                 <th className="py-1 px-1.5 border-l border-[#666] w-[62px]">
                                   {colLabel('discPct', 'ن الخصم')}
                                 </th>
                               )}
-                              {activeTpl.discountsAndCommissions.showDiscountAmount && (
+                              {activeTpl.discountsAndCommissions.showDiscountAmount && !isSimpleDoc && (
                                 <th className="py-1 px-2 border-l border-[#666] w-[72px]">
                                   {colLabel('discount', 'الخصم')}
                                 </th>
                               )}
-                              {activeTpl.columns.showExpiry && (
+                              {activeTpl.columns.showExpiry && !isSimpleDoc && (
                                 <th className="py-1 px-2 border-l border-[#666] w-[95px]">
                                   {colLabel('expiryDate', 'تاريخ الصلاحية')}
                                 </th>
@@ -1464,7 +1711,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                                 />
                               </td>
                             )}
-                            {activeTpl.columns.showUnit && (
+                            {activeTpl.columns.showUnit && !isSimpleDoc && (
                               <td className="p-0 border-l border-[#bbb]">
                                 <input
                                   value={it.unit}
@@ -1473,7 +1720,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                                 />
                               </td>
                             )}
-                            {activeTpl.columns.showBonus && (
+                            {activeTpl.columns.showBonus && !isSimpleDoc && (
                               <td className="p-0 border-l border-[#bbb]">
                                 <input
                                   type="number"
@@ -1539,7 +1786,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                                 />
                               </td>
                             )}
-                            {activeTpl.columns.showExpiry && (
+                            {activeTpl.columns.showExpiry && !isSimpleDoc && (
                               <td className="p-0 border-l border-[#bbb]">
                                 <input
                                   value={it.expiryDate || ''}
@@ -1572,7 +1819,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                 </div>
 
                 {/* Accounting Split Grid right below (matching 024310) */}
-                {!wp?.hideAccountsPanel && (
+                {!wp?.hideAccountsPanel && !isSimpleDoc && (
                 <div className="bg-white overflow-auto h-[96px]">
                   <table className="w-full border-collapse text-[12px]">
                     <thead className="sticky top-0">
@@ -1727,24 +1974,28 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                       className="erp-field w-[105px] bg-[#eaeaea] text-center font-bold"
                     />
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className="font-bold">الخصم</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={discountVal}
-                      onChange={(e) => setDiscountVal(e.target.value)}
-                      className="erp-field w-[75px] bg-white text-center font-bold"
-                    />
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="font-bold">الصافي</span>
-                    <input
-                      readOnly
-                      value={fmtAmt(netTotal)}
-                      className="erp-field w-[95px] bg-[#eaeaea] text-center font-bold"
-                    />
-                  </div>
+                  {!isSimpleDoc && (
+                    <div className="flex items-center gap-1">
+                      <span className="font-bold">الخصم</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={discountVal}
+                        onChange={(e) => setDiscountVal(e.target.value)}
+                        className="erp-field w-[75px] bg-white text-center font-bold"
+                      />
+                    </div>
+                  )}
+                  {!isSimpleDoc && (
+                    <div className="flex items-center gap-1">
+                      <span className="font-bold">الصافي</span>
+                      <input
+                        readOnly
+                        value={fmtAmt(netTotal)}
+                        className="erp-field w-[95px] bg-[#eaeaea] text-center font-bold"
+                      />
+                    </div>
+                  )}
                   <div className="flex items-center gap-1">
                     <span className="font-bold">الضريبة</span>
                     <input
@@ -1827,12 +2078,12 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
               {/* Bottom Command Bar — flat 8-button layout for sales, grouped for purchases */}
               <div
                 className={`bg-[#f0f0f0] px-2 py-1.5 relative ${
-                  isSalesDoc
+                  isPlainSales
                     ? 'grid grid-cols-8 gap-1'
                     : 'flex flex-wrap items-center justify-between gap-2'
                 }`}
               >
-                {isSalesDoc ? (
+                {isPlainSales ? (
                   <>
                     <button type="button" onClick={onOpenPrint} className={BAR_BTN_SALES}>
                       اعدادات الطباعة
@@ -1954,9 +2205,9 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                           setKindMenuOpen(false);
                           openFetchDialog();
                         }}
-                        className={`${BAR_BTN} w-[76px]`}
+                        className={`${BAR_BTN} ${isReturnDoc ? 'w-[96px]' : 'w-[76px]'}`}
                       >
-                        جلب
+                        {isReturnDoc ? 'جلب فاتورة' : 'جلب'}
                       </button>
                       <button
                         type="button"
@@ -1985,16 +2236,18 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                       >
                         معاينة
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPrintCount((c) => c + 1);
-                          setPreviewMode('loadingOrder');
-                        }}
-                        className={`${BAR_BTN} w-[96px]`}
-                      >
-                        أمر تحميل
-                      </button>
+                      {!isReturnDoc && !isSimpleDoc && !isNoteDoc && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPrintCount((c) => c + 1);
+                            setPreviewMode('loadingOrder');
+                          }}
+                          className={`${BAR_BTN} w-[96px]`}
+                        >
+                          أمر تحميل
+                        </button>
+                      )}
                     </div>
                   </>
                 )}
@@ -2003,7 +2256,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                 {kindMenuOpen && (
                   <div
                     className={`absolute bottom-[34px] z-[60] w-[230px] bg-white border border-[#7a8699] shadow-xl py-0.5 text-[12px] max-h-[430px] overflow-auto erp-scrollbar ${
-                      isSalesDoc ? 'right-[318px]' : 'right-[214px]'
+                      isPlainSales ? 'right-[318px]' : 'right-[214px]'
                     }`}
                     onMouseLeave={() => setKindMenuOpen(false)}
                   >
@@ -2129,59 +2382,143 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
           )}
 
           {viewMode === 'profit' && (
-            <div className="flex-1 flex flex-col gap-3 p-3 overflow-hidden">
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-white border border-[#999] p-3 text-center">
-                  <div className="text-[13px] text-[#555] font-bold">عدد الفواتير</div>
-                  <div className="text-[22px] font-black text-[#005499]">
-                    {profitSource.length}
-                  </div>
-                </div>
-                <div className="bg-white border border-[#999] p-3 text-center">
-                  <div className="text-[13px] text-[#555] font-bold">إجمالي المبيعات / القيمة</div>
-                  <div className="text-[22px] font-black text-[#111]">
-                    {profitSource.reduce((s, i) => s + i.total, 0).toLocaleString()}
-                  </div>
-                </div>
-                <div className="bg-white border border-[#999] p-3 text-center">
-                  <div className="text-[13px] text-[#555] font-bold">صافي الربح التقديري</div>
-                  <div className="text-[22px] font-black text-[#0b6b3a]">
-                    {profitSource.reduce((s, i) => s + i.profit, 0).toLocaleString()}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex-1 bg-white border border-[#8e8e8e] overflow-auto erp-scrollbar">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-[#e8eaf0] border-b border-[#999]">
-                      <th className="py-2 px-2 border-l border-[#ccc]">رقم</th>
-                      <th className="py-2 px-2 border-l border-[#ccc]">النوع</th>
-                      <th className="py-2 px-2 border-l border-[#ccc]">التاريخ</th>
-                      <th className="py-2 px-2 border-l border-[#ccc]">الإجمالي</th>
-                      <th className="py-2 px-2">الربح</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {profitSource.map((inv) => (
-                      <tr key={inv.id} className="border-b border-[#ddd]">
-                        <td className="py-1.5 px-2 text-center border-l border-[#eee]">
-                          {inv.number}
+            <div className="flex-1 flex flex-col overflow-hidden bg-[#dce4ee]">
+              <div className="flex-1 flex flex-col bg-white border-b-2 border-[#333] overflow-hidden">
+                <div className="flex-1 overflow-auto erp-scrollbar">
+                  <table className="w-full border-collapse text-[12px]">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="bg-[#b6b8f2] border-b border-[#444]">
+                        <th className="py-1 px-2 border-l border-[#666] w-[92px]">رقم الفاتورة</th>
+                        <th className="py-1 px-2 border-l border-[#666] w-[110px]">التاريخ</th>
+                        <th className="py-1 px-2 border-l border-[#666] w-[110px]">الرمز</th>
+                        <th className="py-1 px-2 border-l border-[#666]">اسم المادة</th>
+                        {profitShowQty && (
+                          <th className="py-1 px-2 border-l border-[#666] w-[80px]">الكمية</th>
+                        )}
+                        {profitShowPrice && (
+                          <th className="py-1 px-2 border-l border-[#666] w-[90px]">السعر</th>
+                        )}
+                        {profitShowCostPrice && (
+                          <th className="py-1 px-2 border-l border-[#666] w-[90px]">سعر الكلفة</th>
+                        )}
+                        <th className="py-1 px-2 border-l border-[#666] w-[110px]">الكلفة</th>
+                        <th className="py-1 px-2 border-l border-[#666] w-[110px]">الاجمالي</th>
+                        <th className="py-1 px-2 border-l border-[#666] w-[110px]">الربح</th>
+                        <th className="py-1 px-2 w-[92px]">النسبة %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {profitRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="p-6 text-center font-bold text-[#666]">
+                            لا توجد بيانات مطابقة للفترة المحددة.
+                          </td>
+                        </tr>
+                      ) : (
+                        profitRows.map((r, idx) => (
+                          <tr
+                            key={r.id}
+                            className={`border-b border-[#e2e2e2] h-[24px] ${
+                              idx % 2 === 1 ? 'bg-[#f8f9ca]' : 'bg-white'
+                            }`}
+                          >
+                            <td className="px-2 text-center font-bold border-l border-[#ccc]">
+                              {r.number}
+                            </td>
+                            <td className="px-2 text-center border-l border-[#ccc]" dir="ltr">
+                              {r.date}
+                            </td>
+                            <td className="px-2 text-center border-l border-[#ccc]">{r.code}</td>
+                            <td className="px-2 font-bold border-l border-[#ccc]">{r.name}</td>
+                            {profitShowQty && (
+                              <td className="px-2 text-center border-l border-[#ccc]">
+                                {fmtAmt(r.qty)}
+                              </td>
+                            )}
+                            {profitShowPrice && (
+                              <td className="px-2 text-center border-l border-[#ccc]">
+                                {r.price.toFixed(2)}
+                              </td>
+                            )}
+                            {profitShowCostPrice && (
+                              <td className="px-2 text-center border-l border-[#ccc]">
+                                {r.costPrice.toFixed(2)}
+                              </td>
+                            )}
+                            <td className="px-2 text-center border-l border-[#ccc]">
+                              {r.cost.toFixed(2)}
+                            </td>
+                            <td className="px-2 text-center border-l border-[#ccc]">
+                              {r.total.toFixed(2)}
+                            </td>
+                            <td className="px-2 text-center font-bold border-l border-[#ccc]">
+                              {r.profit.toFixed(2)}
+                            </td>
+                            <td className="px-2 text-center font-bold" dir="ltr">
+                              {r.pct.toFixed(2)} %
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-[#f9dfc6] border-t-2 border-[#333] font-extrabold h-[26px]">
+                        <td className="px-2 text-center border-l border-[#333]" colSpan={4}>
+                          المجموع
                         </td>
-                        <td className="py-1.5 px-2 border-l border-[#eee]">{inv.kind}</td>
-                        <td className="py-1.5 px-2 text-center border-l border-[#eee]">
-                          {inv.date}
+                        {profitShowQty && (
+                          <td className="px-2 text-center border-l border-[#333]">
+                            {fmtAmt(profitRows.reduce((a, r) => a + r.qty, 0))}
+                          </td>
+                        )}
+                        {profitShowPrice && <td className="border-l border-[#333]" />}
+                        {profitShowCostPrice && <td className="border-l border-[#333]" />}
+                        <td className="px-2 text-center border-l border-[#333]">
+                          {profitTotals.cost.toFixed(2)}
                         </td>
-                        <td className="py-1.5 px-2 text-center border-l border-[#eee]">
-                          {inv.total.toLocaleString()}
+                        <td className="px-2 text-center border-l border-[#333]">
+                          {profitTotals.total.toFixed(2)}
                         </td>
-                        <td className="py-1.5 px-2 text-center font-bold text-[#0b6b3a]">
-                          {inv.profit.toLocaleString()}
+                        <td className="px-2 text-center border-l border-[#333]">
+                          {profitTotals.profit.toFixed(2)}
+                        </td>
+                        <td className="px-2 text-center" dir="ltr">
+                          {(profitTotals.cost > 0
+                            ? (profitTotals.profit / profitTotals.cost) * 100
+                            : 0
+                          ).toFixed(2)}{' '}
+                          %
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </tfoot>
+                  </table>
+                </div>
+
+                <div className="bg-[#f0f0f0] border-t border-[#333] px-2 py-1.5 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setProfitSettingsOpen(true)}
+                    className="erp-classic-btn w-[140px] h-[30px] font-bold"
+                  >
+                    اعدادات الطباعة
+                  </button>
+                  <span className="text-[11px] font-bold text-[#444]">
+                    {profitFullPeriod
+                      ? 'الفترة: كاملة'
+                      : `الفترة: ${profitFrom || '—'} ← ${profitTo || '—'}`}
+                    {' · '}
+                    المستودع: {profitWarehouse}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfitSettingsOpen(true);
+                    }}
+                    className="erp-classic-btn w-[120px] h-[30px]"
+                  >
+                    خيارات التقرير
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -2559,6 +2896,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                 <span>معاينة الطباعة</span>
                 <span className="text-[#555] font-normal">
                   — {previewMode === 'loadingOrder' ? 'أمر تحميل' : shortWindowTitle(kindTitle)} #{invNumber}
+                  {ps?.copies ? ` · عدد النسخ: ${ps.copies}` : ''}
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -2577,7 +2915,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                   type="button"
                   onClick={() => {
                     setPrintCount((c) => c + 1);
-                    window.print();
+                    printWithCopies();
                   }}
                   className="erp-classic-btn focused px-4 h-[26px] text-[12px] font-bold"
                 >
@@ -2590,15 +2928,30 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                 >
                   إغلاق
                 </button>
+                <button
+                  type="button"
+                  onClick={exportPdf}
+                  className="erp-classic-btn px-3 h-[26px] text-[12px] font-bold"
+                  title="تصدير الورقة كملف PDF"
+                >
+                  PDF
+                </button>
               </div>
             </div>
 
             {/* Paper */}
             <div className="flex-1 overflow-auto bg-[#9a9a9a] p-4 flex justify-center">
+              <style>{`@media screen { .print-copy-extra { display: none !important; } }
+              @media print { .print-copy-extra { break-before: page; page-break-before: always; } }
+              @media print { @page { size: A4 ${
+                ps?.printDir === 'عرضي' ? 'landscape' : 'portrait'
+              }; margin: ${ps?.marginTop ?? 8}mm ${ps?.marginRight ?? 8}mm ${
+                ps?.marginBottom ?? 8
+              }mm ${ps?.marginLeft ?? 8}mm; } }`}</style>
               <div
                 data-print-preview
                 dir="rtl"
-                className="bg-white w-[794px] min-h-[1040px] p-[18px] text-[11px] text-black shadow-xl border border-[#555] flex flex-col"
+                className={`bg-white w-[794px] min-h-[1040px] p-[18px] text-[11px] text-black shadow-xl flex flex-col ${pageFrameClass}`}
               >
                 {/* Company header — designed header when configured, otherwise the built-in one */}
                 {hasDesignerHeader && designerHeader ? (
@@ -2642,7 +2995,50 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                     ))}
                   </div>
                 ) : (
-                <div className="border-2 border-black px-3 py-2 flex items-center justify-between gap-3">
+                <div
+                  className={
+                    companyProps?.centerHeader
+                      ? 'border-2 border-black px-3 py-2 flex flex-col items-center justify-center text-center gap-0.5'
+                      : 'border-2 border-black px-3 py-2 flex items-center justify-between gap-3'
+                  }
+                >
+                  {companyProps?.centerHeader ? (
+                    <>
+                      {companyProps?.logoData && (
+                        <img
+                          src={companyProps.logoData}
+                          alt="شعار الشركة"
+                          referrerPolicy="no-referrer"
+                          className="max-h-[64px] max-w-[190px] object-contain mb-1"
+                        />
+                      )}
+                      <div className="text-[19px] font-extrabold">
+                        {companyProps?.company || companyProps?.hdrArName || 'النظام'}
+                      </div>
+                      {companyProps?.hdrEnName && (
+                        <div className="text-[10px] font-bold" dir="ltr">
+                          {companyProps.hdrEnName}
+                        </div>
+                      )}
+                      {companyProps?.hdrArAddr && (
+                        <div className="text-[9px]">{companyProps.hdrArAddr}</div>
+                      )}
+                      {companyProps?.hdrArTel && (
+                        <div className="text-[9px] whitespace-pre-line">
+                          تلفون: {companyProps.hdrArTel}
+                        </div>
+                      )}
+                      {companyProps?.hdrEnAddr && (
+                        <div className="text-[9px] text-[#333]" dir="ltr">
+                          {companyProps.hdrEnAddr}
+                        </div>
+                      )}
+                      {companyProps?.taxNumber && (
+                        <div className="text-[9px]">الرقم الضريبي: {companyProps.taxNumber}</div>
+                      )}
+                    </>
+                  ) : (
+                    <>
                   <div className="w-[170px] text-left leading-tight">
                     {companyProps?.hdrEnName && (
                       <div className="font-bold text-[11px]" dir="ltr">
@@ -2683,12 +3079,17 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                       <div className="text-[9px]">الرقم الضريبي: {companyProps.taxNumber}</div>
                     )}
                   </div>
+                    </>
+                  )}
                 </div>
 
                 )}
 
                 {/* Document title */}
-                <div className="border-2 border-black rounded-full text-center font-extrabold text-[15px] py-1 my-2">
+                <div
+                  style={designerFontStyle2(ps?.titleFont, 15)}
+                  className="border-2 border-black rounded-full text-center font-extrabold py-1 my-2"
+                >
                   {previewMode === 'loadingOrder'
                     ? 'أمر تحميل بضاعة'
                     : `فاتورة ${shortWindowTitle(kindTitle)} ${payType === 'آجل' ? 'أجل' : payType}`}
@@ -2715,9 +3116,13 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                 </div>
 
                 {/* Items table */}
-                <table className="w-full border-collapse mt-1 text-[10px]">
+                <table
+                  style={designerFontStyle2(ps?.tableFont, 10)}
+                  dir={ps?.ltrTable ? 'ltr' : 'rtl'}
+                  className="w-full border-collapse mt-1"
+                >
                   <thead>
-                    <tr className="bg-[#d9d9d9]">
+                    <tr className={headBgClass}>
                       {previewMode === 'invoice' && (
                         <th className="border border-black px-1 py-0.5 w-[78px]">الباركود</th>
                       )}
@@ -2812,7 +3217,10 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
 
                 {/* Totals in words */}
                 {previewMode === 'invoice' && (
-                  <div className="border-2 border-black border-t-0 px-2 py-1 text-[10px] leading-relaxed">
+                  <div
+                    style={designerFontStyle2(ps?.totalFont, 10)}
+                    className="border-2 border-black border-t-0 px-2 py-1 leading-relaxed"
+                  >
                     <div className="text-left font-bold">
                       الإجمالي : {Math.max(0, subTotal - lineDiscountTotal).toFixed(0)}
                     </div>
@@ -2895,6 +3303,231 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* تقرير أرباح الفواتير — خيارات (screenshot 2) */}
+      {profitSettingsOpen && (
+        <div className="fixed inset-0 z-[9999] bg-black/30 flex items-center justify-center p-4">
+          <div className="bg-[#eef2f8] border-2 border-[#555] w-[700px] shadow-2xl select-none text-[12px]">
+            <div className="bg-white border-b border-[#ccc] px-3 py-1.5 flex justify-between items-center">
+              <span className="font-bold flex items-center gap-2">
+                <span className="inline-block w-4 h-4 bg-[conic-gradient(#e33_0_25%,#fc0_0_50%,#3a7_0_75%,#38e_0)] border border-[#888]" />
+                تقرير أرباح الفواتير
+              </span>
+              <button
+                type="button"
+                onClick={() => setProfitSettingsOpen(false)}
+                className="px-2 font-bold cursor-pointer hover:bg-[#e81123] hover:text-white"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-4 flex flex-col gap-3">
+              <div className="flex items-center gap-2 justify-end">
+                <span className="font-bold w-[90px] text-right">اسم المادة</span>
+                <input
+                  value={profitItemName}
+                  onChange={(e) => setProfitItemName(e.target.value)}
+                  className="erp-field w-[390px] bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setLookupModal({
+                      title: 'اختيار المادة',
+                      items: importedMaterials.map((m) => ({
+                        label: m.name,
+                        code: m.code,
+                      })),
+                      onSelect: (label) => setProfitItemName(label),
+                    })
+                  }
+                  className="erp-classic-btn w-[52px] h-[24px]"
+                >
+                  بحث
+                </button>
+              </div>
+
+              <label className="flex items-center justify-end gap-2 font-bold cursor-pointer">
+                <span>الفترة كاملة</span>
+                <input
+                  type="checkbox"
+                  checked={profitFullPeriod}
+                  onChange={(e) => setProfitFullPeriod(e.target.checked)}
+                />
+              </label>
+
+              <div className="flex flex-col gap-1.5 items-end">
+                <div className="flex items-center gap-1.5">
+                  <div className="flex border border-[#999] bg-[#e9edf4]">
+                    {['↑', '↓'].map((sym) => (
+                      <button
+                        key={sym}
+                        type="button"
+                        className="w-[26px] h-[24px] border-l border-[#999] font-bold cursor-pointer hover:bg-[#d7e3f7]"
+                      >
+                        {sym}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="erp-classic-btn w-[62px] h-[24px]"
+                    onClick={() => {
+                      const d = new Date();
+                      setProfitFrom(d.toISOString().slice(0, 10));
+                    }}
+                  >
+                    الشهر
+                  </button>
+                  <button
+                    type="button"
+                    className="erp-classic-btn w-[52px] h-[24px]"
+                    onClick={() => setProfitFrom(new Date().toISOString().slice(0, 10))}
+                  >
+                    اليوم
+                  </button>
+                  <input
+                    type="date"
+                    disabled={profitFullPeriod}
+                    value={profitFrom}
+                    onChange={(e) => setProfitFrom(e.target.value)}
+                    className={`erp-field w-[120px] text-center ${
+                      profitFullPeriod ? 'bg-[#e4e4e4]' : 'bg-white'
+                    }`}
+                    dir="ltr"
+                  />
+                  <span className="font-bold w-[46px]">من تاريخ:</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="date"
+                    disabled={profitFullPeriod}
+                    value={profitTo}
+                    onChange={(e) => setProfitTo(e.target.value)}
+                    className={`erp-field w-[120px] text-center ${
+                      profitFullPeriod ? 'bg-[#e4e4e4]' : 'bg-white'
+                    }`}
+                    dir="ltr"
+                  />
+                  <span className="font-bold w-[46px]">الى تاريخ:</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 justify-end">
+                <select
+                  value={profitCostBasis}
+                  onChange={(e) => setProfitCostBasis(e.target.value)}
+                  className="erp-field w-[260px] bg-white text-center"
+                >
+                  <option value="السعر الوسيط (الكلفة)">السعر الوسيط (الكلفة)</option>
+                  <option value="سعر الشراء">سعر الشراء</option>
+                  <option value="آخر سعر شراء">آخر سعر شراء</option>
+                </select>
+                <span className="font-bold">سعر الكلفة لحساب أرباح الفواتير</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 items-center">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    value={profitAmount2}
+                    onChange={(e) => setProfitAmount2(e.target.value)}
+                    className="erp-field flex-1 bg-white text-center"
+                  />
+                  <input
+                    value={profitAmount1}
+                    onChange={(e) => setProfitAmount1(e.target.value)}
+                    className="erp-field flex-1 bg-white text-center"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold">حساب مقابل</span>
+                  <input
+                    value={profitCounterAccount}
+                    onChange={(e) => setProfitCounterAccount(e.target.value)}
+                    className="erp-field flex-1 bg-white text-center"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLookupModal({
+                        title: 'حساب مقابل',
+                        items: allAccountChoices,
+                        onSelect: (label) => setProfitCounterAccount(label),
+                      })
+                    }
+                    className="erp-classic-btn w-[52px] h-[24px]"
+                  >
+                    بحث
+                  </button>
+                </div>
+                <label className="flex flex-col gap-1 font-bold">
+                  <span className="flex items-center gap-1.5 justify-end">
+                    <span>سعر الكلفة</span>
+                    <input
+                      type="checkbox"
+                      checked={profitShowCostPrice}
+                      onChange={(e) => setProfitShowCostPrice(e.target.checked)}
+                    />
+                  </span>
+                  <span className="flex items-center gap-1.5 justify-end">
+                    <span>الكمية</span>
+                    <input
+                      type="checkbox"
+                      checked={profitShowQty}
+                      onChange={(e) => setProfitShowQty(e.target.checked)}
+                    />
+                  </span>
+                  <span className="flex items-center gap-1.5 justify-end">
+                    <span>السعر</span>
+                    <input
+                      type="checkbox"
+                      checked={profitShowPrice}
+                      onChange={(e) => setProfitShowPrice(e.target.checked)}
+                    />
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2 justify-end">
+                <select
+                  value={profitWarehouse}
+                  onChange={(e) => setProfitWarehouse(e.target.value)}
+                  className="erp-field w-[320px] bg-white text-center"
+                >
+                  <option value="كافة المستودعات">كافة المستودعات</option>
+                  {warehouses.map((w) => (
+                    <option key={w.id} value={w.name}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="font-bold">المستودع</span>
+              </div>
+            </div>
+
+            <div className="bg-[#e9edf4] border-t border-[#c5ccd8] px-4 py-2 flex items-center justify-center gap-8">
+              <button
+                type="button"
+                onClick={() => setProfitSettingsOpen(false)}
+                className="erp-classic-btn w-[150px] h-[28px] font-bold"
+              >
+                خروج
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setProfitSettingsOpen(false);
+                  onNotify('تم تطبيق خيارات تقرير الأرباح');
+                }}
+                className="erp-classic-btn focused w-[190px] h-[28px] font-bold"
+              >
+                موافق
+              </button>
             </div>
           </div>
         </div>

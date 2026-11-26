@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { PERMS_DATA, PERM_TABS, toAr } from '../data/erpDefaults';
+import { PERMS_DATA, toAr } from '../data/erpDefaults';
 import type { ErpUser, MsgConfig, PermCategoryKey } from '../types/erp';
 import { DraggableWindow } from './DraggableWindow';
+
+const TAB_GROUPS: { label: string; keys: PermCategoryKey[] }[] = [
+  { label: 'شؤون الموظفين', keys: ['emp'] },
+  { label: 'المحاسبة والمواد', keys: ['acc', 'mat'] },
+  { label: 'صلاحيات عامة', keys: ['gen'] },
+  { label: 'صلاحيات اخرى', keys: ['oth'] },
+  { label: 'الدليل', keys: ['guide'] },
+];
 
 interface PermissionsDialogProps {
   open: boolean;
@@ -27,7 +35,7 @@ export const PermissionsDialog: React.FC<PermissionsDialogProps> = ({
   const [pass2, setPass2] = useState('');
   const [acct, setAcct] = useState('');
   const [box, setBox] = useState('');
-  const [activeTab, setActiveTab] = useState<PermCategoryKey>('emp');
+  const [tabIdx, setTabIdx] = useState(0);
   const [perms, setPerms] = useState<Partial<Record<PermCategoryKey, number[]>>>({});
   const [selectedRow, setSelectedRow] = useState<number>(-1);
 
@@ -39,27 +47,34 @@ export const PermissionsDialog: React.FC<PermissionsDialogProps> = ({
       setAcct(user?.acct || '');
       setBox(user?.box || '');
       setPerms(JSON.parse(JSON.stringify(user?.perms || {})));
-      setActiveTab('emp');
+      setTabIdx(0);
       setSelectedRow(-1);
     }
   }, [open, user]);
 
-  const currentList = PERMS_DATA[activeTab];
-  const currentSet = new Set(perms[activeTab] || []);
-  const allChecked = currentList.length > 0 && currentSet.size === currentList.length;
+  const groupKeys = TAB_GROUPS[tabIdx].keys;
+  const groupRows = groupKeys.flatMap((key) =>
+    PERMS_DATA[key].map(([id, label]) => ({ key, id, label }))
+  );
+  const groupTotal = groupRows.length;
+  const groupChecked = groupRows.filter((r) => (perms[r.key] || []).includes(r.id)).length;
+  const allChecked = groupTotal > 0 && groupChecked === groupTotal;
 
-  const togglePerm = (id: number, checked: boolean) => {
-    const next = new Set(perms[activeTab] || []);
+  const isChecked = (key: PermCategoryKey, id: number) => (perms[key] || []).includes(id);
+
+  const togglePerm = (key: PermCategoryKey, id: number, checked: boolean) => {
+    const next = new Set(perms[key] || []);
     if (checked) next.add(id);
     else next.delete(id);
-    setPerms({ ...perms, [activeTab]: [...next] });
+    setPerms({ ...perms, [key]: [...next] });
   };
 
   const toggleAll = (checked: boolean) => {
-    setPerms({
-      ...perms,
-      [activeTab]: checked ? currentList.map((item) => item[0]) : [],
-    });
+    const next: Partial<Record<PermCategoryKey, number[]>> = { ...perms };
+    for (const key of groupKeys) {
+      next[key] = checked ? PERMS_DATA[key].map((item) => item[0]) : [];
+    }
+    setPerms(next);
   };
 
   const handleSave = async () => {
@@ -154,16 +169,16 @@ export const PermissionsDialog: React.FC<PermissionsDialogProps> = ({
         {/* Permission Category Tabs + White Checklist Container */}
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex flex-wrap items-end px-0.5">
-            {PERM_TABS.map((t) => (
+            {TAB_GROUPS.map((t, idx) => (
               <button
-                key={t.key}
+                key={t.label}
                 type="button"
                 onClick={() => {
-                  setActiveTab(t.key);
+                  setTabIdx(idx);
                   setSelectedRow(-1);
                 }}
                 className={`px-3 py-1 text-[13px] font-bold border border-[#b5b5b5] border-b-0 -ml-px cursor-pointer ${
-                  activeTab === t.key
+                  tabIdx === idx
                     ? 'bg-white text-black relative top-[1px] pb-[6px] z-10'
                     : 'bg-[#e9e9e9] text-[#222] hover:bg-[#e5f1fb]'
                 }`}
@@ -176,29 +191,36 @@ export const PermissionsDialog: React.FC<PermissionsDialogProps> = ({
           <div className="flex-1 flex flex-col bg-white border border-[#9e9e9e] p-2 overflow-hidden">
             {/* Permissions List */}
             <div className="flex-1 border border-[#a5a5a5] bg-white overflow-y-auto erp-scrollbar">
-              {currentList.map(([id, label], idx) => {
+              {groupRows.map((row, idx) => {
                 const isSel = selectedRow === idx;
-                const checked = currentSet.has(id);
+                const checked = isChecked(row.key, row.id);
+                const showHeader = groupKeys.length > 1 && (idx === 0 || groupRows[idx - 1].key !== row.key);
                 return (
-                  <div
-                    key={id}
-                    onClick={() => setSelectedRow(idx)}
-                    className={`flex items-center gap-2 px-2 py-[2px] cursor-pointer text-[13px] font-bold ${
-                      isSel ? 'bg-[#0078d7] text-white' : 'hover:bg-[#edf5fd] text-black'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => togglePerm(id, e.target.checked)}
-                      className="w-[14px] h-[14px] accent-[#0078d7] shrink-0"
-                    />
-                    <span>
-                      {label}
-                      {toAr(id)}
-                    </span>
-                  </div>
+                  <React.Fragment key={`${row.key}-${row.id}`}>
+                    {showHeader && (
+                      <div className="px-2 py-[3px] bg-[#e9eff7] border-y border-[#c9d3e0] font-bold text-[12px] text-[#274b74]">
+                        {row.key === 'acc' ? 'صلاحيات المحاسبة' : 'صلاحيات المواد'}
+                      </div>
+                    )}
+                    <div
+                      onClick={() => setSelectedRow(idx)}
+                      className={`flex items-center gap-2 px-2 py-[2px] cursor-pointer text-[13px] font-bold ${
+                        isSel ? 'bg-[#0078d7] text-white' : 'hover:bg-[#edf5fd] text-black'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => togglePerm(row.key, row.id, e.target.checked)}
+                        className="w-[14px] h-[14px] accent-[#0078d7] shrink-0"
+                      />
+                      <span>
+                        {row.label}
+                        {toAr(idx + 1)}
+                      </span>
+                    </div>
+                  </React.Fragment>
                 );
               })}
             </div>

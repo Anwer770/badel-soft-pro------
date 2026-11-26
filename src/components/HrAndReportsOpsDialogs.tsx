@@ -10,6 +10,7 @@ import type {
   LeaveRecord,
   MsgConfig,
 } from '../types/erp';
+import { ReportHeader } from './ReportHeader';
 import { DraggableWindow } from './DraggableWindow';
 
 export type HrOpsMode =
@@ -1222,7 +1223,13 @@ export const ReportsSuiteDialog: React.FC<ReportsSuiteDialogProps> = ({
       onClose={onClose}
     >
       <div className="flex-1 flex flex-col bg-[#dce4ee] p-3 gap-2.5 overflow-hidden text-[13px]">
-        {/* Header & Filters */}
+        <ReportHeader
+          props={state.props}
+          compact
+          subtitle={REPORT_TITLES[mode]}
+          meta={<span className="text-[#555] font-bold">العام: {toAr(state.props.year)}</span>}
+        />
+        {/* Filters */}
         <div className="bg-[#f4f6fa] border border-[#b9c4d4] p-2.5 flex flex-wrap items-center gap-2">
           <span className="font-bold">{state.props.hdrArName || state.props.company}</span>
           <span className="text-[#555]">| العام: {toAr(state.props.year)}</span>

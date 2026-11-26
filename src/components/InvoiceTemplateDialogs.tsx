@@ -97,6 +97,7 @@ type TabId =
   | 'price'
   | 'searchConds'
   | 'salesTax'
+  | 'documents'
   | 'users'
   | 'medical'
   | 'scale'
@@ -113,6 +114,7 @@ const TOP_TABS: { id: TabId; label: string }[] = [
   { id: 'price', label: 'السعر' },
   { id: 'searchConds', label: 'شروط بحث المواد' },
   { id: 'salesTax', label: 'ضريبة المبيعات' },
+  { id: 'documents', label: 'المستندين' },
   { id: 'users', label: 'المستخدمين' },
   { id: 'medical', label: 'خيارات النظام الطبي' },
   { id: 'scale', label: 'خصائص الميزان' },
@@ -487,6 +489,7 @@ export const InvoiceTemplateEditorDialog: React.FC<InvoiceTemplateEditorProps> =
     { key: 'showFactor', label: 'إظهار حقل عامل التحويل' },
     { key: 'showLocation', label: 'إظهار موقع المادة' },
     { key: 'showShortages', label: 'إظهار النواقص' },
+    { key: 'showLineWarehouse', label: 'إظهار عمود مستود السطر' },
   ];
 
   const fieldChecksCol2: { key: keyof InvoiceTemplateConfig['columns']; label: string }[] = [
@@ -1741,6 +1744,101 @@ export const InvoiceTemplateEditorDialog: React.FC<InvoiceTemplateEditorProps> =
               );
             })()}
 
+            {activeTab === 'documents' && (() => {
+              const docs = tpl.documents || [];
+              const updateDoc = (id: string, key: 'name' | 'note', value: string) =>
+                setTpl((prev) => ({
+                  ...prev,
+                  documents: (prev.documents || []).map((d) =>
+                    d.id === id ? { ...d, [key]: value } : d
+                  ),
+                }));
+              return (
+                <div className="flex flex-col gap-2 h-full">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold">قائمة المستندين</span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setTpl((prev) => ({
+                            ...prev,
+                            documents: [
+                              ...(prev.documents || []),
+                              {
+                                id: `doc-${Date.now()}`,
+                                name: '',
+                                note: '',
+                              },
+                            ],
+                          }))
+                        }
+                        className="erp-classic-btn h-[24px] px-3 text-[12px]"
+                      >
+                        إضافة
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setTpl((prev) => ({
+                            ...prev,
+                            documents: (prev.documents || []).slice(0, -1),
+                          }))
+                        }
+                        className="erp-classic-btn h-[24px] px-3 text-[12px]"
+                      >
+                        حذف
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 bg-white border border-[#666] overflow-auto erp-scrollbar min-h-[300px]">
+                    <table className="w-full border-collapse text-[12px]">
+                      <thead className="sticky top-0">
+                        <tr className="bg-[#f0f0f0] border-b border-[#b9c4d4]">
+                          <th className="py-1 px-2 font-bold text-center border-l border-[#ccc] w-[320px]">
+                            اسم المستند
+                          </th>
+                          <th className="py-1 px-2 font-bold text-center">ملاحظات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {docs.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={2}
+                              className="h-[300px] text-center text-[#777] text-[12px]"
+                            >
+                              لا توجد مستندات — استخدم «إضافة» لإضافة مستند.
+                            </td>
+                          </tr>
+                        ) : (
+                          docs.map((d) => (
+                            <tr key={d.id} className="border-b border-[#eee] h-[24px]">
+                              <td className="p-0 border-l border-[#d5dce6]">
+                                <input
+                                  value={d.name}
+                                  onChange={(e) => updateDoc(d.id, 'name', e.target.value)}
+                                  className="w-full h-[23px] px-2 bg-transparent outline-none focus:bg-[#e5f1fb] font-bold"
+                                />
+                              </td>
+                              <td className="p-0">
+                                <input
+                                  value={d.note}
+                                  onChange={(e) => updateDoc(d.id, 'note', e.target.value)}
+                                  className="w-full h-[23px] px-2 bg-transparent outline-none focus:bg-[#e5f1fb]"
+                                />
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+
             {activeTab === 'users' && (() => {
               const listUsers =
                 users.length > 0 ? users.map((u) => u.name) : ['admin'];
@@ -2367,7 +2465,7 @@ export const InvoiceTemplateEditorDialog: React.FC<InvoiceTemplateEditorProps> =
             onClick={handleConfirm}
             className="erp-classic-btn focused w-[240px] h-[30px]"
           >
-            موفق
+            موافق
           </button>
           <button type="button" onClick={onClose} className="erp-classic-btn w-[240px] h-[30px]">
             خروج
