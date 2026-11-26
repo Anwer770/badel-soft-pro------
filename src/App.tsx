@@ -34,6 +34,7 @@ import { MessageBox } from './components/MessageBox';
 import { PermissionsDialog } from './components/PermissionsDialog';
 import { PrintSetupDialog, SettingPagesDialog } from './components/PrintDialogs';
 import { PropsDialog } from './components/PropsDialog';
+import { ReportPropsProvider } from './components/ReportPropsContext';
 import { StatusBar } from './components/StatusBar';
 import {
   AppointmentsDialog,
@@ -741,6 +742,7 @@ export default function App() {
   }
 
   return (
+    <ReportPropsProvider value={state.props}>
     <div dir="rtl" className="w-screen h-screen flex flex-col overflow-hidden bg-[#1a2636]">
       {minimizedShell ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-4 text-white">
@@ -1544,5 +1546,6 @@ export default function App() {
 
       <MessageBox config={msgConfig} onResolve={handleMsgResolve} />
     </div>
+    </ReportPropsProvider>
   );
 }

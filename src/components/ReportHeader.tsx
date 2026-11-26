@@ -1,8 +1,10 @@
 import React from 'react';
 import type { GeneralPropsState } from '../types/erp';
+import { useReportProps } from './ReportPropsContext';
 
 interface ReportHeaderProps {
-  props: GeneralPropsState;
+  /** تُقرأ من ReportPropsProvider عند عدم تمريرها */
+  props?: GeneralPropsState | null;
   /** Optional extra info rendered on the opposite side (period, user, year…) */
   meta?: React.ReactNode;
   subtitle?: string;
@@ -13,7 +15,15 @@ interface ReportHeaderProps {
  * ترويسة تقارير موحّدة: الشعار + اسم الشركة + العنوان والتلفون والرقم الضريبي.
  * تحترم خيار «توسيط الترويسة لكافة التقارير» من خصائص الملف.
  */
-export const ReportHeader: React.FC<ReportHeaderProps> = ({ props, meta, subtitle, compact }) => {
+export const ReportHeader: React.FC<ReportHeaderProps> = ({
+  props: propsProp,
+  meta,
+  subtitle,
+  compact,
+}) => {
+  const ctxProps = useReportProps();
+  const props = propsProp || ctxProps;
+  if (!props) return null;
   const centered = Boolean(props.centerHeader);
   const nameAr = props.hdrArName || props.company || 'النظام';
   const logo = props.logoData || undefined;

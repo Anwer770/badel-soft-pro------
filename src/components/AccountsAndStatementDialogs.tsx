@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toAr } from '../data/erpDefaults';
 import type { CustomAccountRecord, JournalEntry, MsgConfig } from '../types/erp';
+import { ReportHeader } from './ReportHeader';
 import { DraggableWindow } from './DraggableWindow';
 
 export interface AccTreeNode {
@@ -1275,6 +1276,15 @@ export const DetailedAccountStatementDialog: React.FC<DetailedAccountStatementDi
         ) : (
           /* Statement Results Table View */
           <div className="flex-1 flex flex-col bg-[#f0f0f0] p-3 overflow-hidden gap-2.5">
+            <ReportHeader
+              compact
+              subtitle={`كشف حساب تفصيلي: ${accountName}`}
+              meta={
+                <span className="text-[12px] font-bold text-[#333]">
+                  من {fromDate} إلى {toDate}
+                </span>
+              }
+            />
             <div className="bg-white border border-[#bdbdbd] p-2.5 flex flex-wrap items-center justify-between gap-2 text-[13px]">
               <div>
                 كشف حساب تفصيلي: <b className="text-[#005a9e]">{accountName}</b> ({currencyFilter})
