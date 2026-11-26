@@ -336,6 +336,8 @@ export interface InvoiceTemplateConfig {
     showFactor: boolean;
     showLocation: boolean;
     showShortages: boolean;
+    /** إظهار عمود «مستود» داخل سطور الفاتورة */
+    showLineWarehouse?: boolean;
     useMainUnitsOnly: boolean;
     showTotalRight: boolean;
     showBonus: boolean;
@@ -421,6 +423,8 @@ export interface InvoiceTemplateConfig {
     multiplyTotalByDueDays: boolean;
     useInvoicePriceOnUnitSwitch: boolean;
   };
+  /** قائمة المستندين المرتبطين بنموذج الفاتورة */
+  documents?: { id: string; name: string; note: string }[];
   extraTabs: {
     priceTier: string;
     pricePercentOffset?: number;
@@ -534,6 +538,39 @@ export interface InvoicePrintPropsConfig {
   groupTitle: string;
   lockAccountInCash: boolean;
   printSeparatePerDepartment: boolean;
+}
+
+export interface PrintSetupState {
+  copies: number;
+  marginTop: number;
+  marginLeft: number;
+  marginBottom: number;
+  marginRight: number;
+  pageFrame: 'none' | 'double' | 'single';
+  tblHdrStyle: 'colors' | 'white' | 'black';
+  cellMarginTop: number;
+  cellMarginRight: number;
+  titleFont: string;
+  titleHeightRatio: number;
+  tableFont: string;
+  tableHeightRatio: number;
+  totalFont: string;
+  totalHeightRatio: number;
+  printDir: string;
+  ltrTable: boolean;
+  footerAfterTable: boolean;
+  printTableColors: boolean;
+  printer: string;
+  specialTemplateName: string;
+  centerSpecialHeader: boolean;
+  centerSpecialFooter: boolean;
+  sharedTemplateName: string;
+  centerSharedHeader: boolean;
+  centerSharedFooter: boolean;
+  orderBySelected: boolean;
+  showSerial: boolean;
+  wrapItemName: boolean;
+  selectedModel: string;
 }
 
 export interface InvoiceTableColumnConfig {
@@ -665,6 +702,44 @@ export interface HrAdjustmentRecord {
   reason: string;
 }
 
+export interface InventorySheetLine {
+  id: string;
+  code: string;
+  name: string;
+  unit: string;
+  qty: number;
+  countQty: number;
+  price: number;
+  balance: number;
+  location: string;
+  rowNo: string;
+  colNo: string;
+  expiry: string;
+}
+
+export interface InventorySheetRecord {
+  id: string;
+  kind: 'opening' | 'adjust';
+  sheetNo: string;
+  date: string;
+  docNumber: string;
+  note: string;
+  warehouse: string;
+  defaultCol: string;
+  defaultRow: string;
+  currency: string;
+  approved: boolean;
+  total: number;
+  lines: InventorySheetLine[];
+  createdBy: string;
+  /** حسابات الجرد المستخدمة عند الاعتماد */
+  profitAccount?: string;
+  outAccount?: string;
+  shortageAccount?: string;
+  surplusAccount?: string;
+  countMethod?: string;
+}
+
 export interface ErpState {
   currentUser: string;
   activeBranch: string;
@@ -697,6 +772,8 @@ export interface ErpState {
   currencies: CurrencyItem[];
   appointments: AppointmentItem[];
   designerSections: DesignerSectionsState;
+  inventorySheets: InventorySheetRecord[];
+  printSetup: PrintSetupState;
 }
 
 export interface ExtractedInvoiceData {

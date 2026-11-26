@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toAr } from '../data/erpDefaults';
 import type { CurrencyItem, ErpState, MsgConfig } from '../types/erp';
+import { ReportHeader } from './ReportHeader';
 import { DraggableWindow } from './DraggableWindow';
 
 interface CurrenciesDialogProps {
@@ -453,18 +454,16 @@ export const GeneralReportDialog: React.FC<GeneralReportDialogProps> = ({
       onClose={onClose}
     >
       <div className="flex-1 flex flex-col bg-[#f0f0f0] p-3 gap-3 overflow-hidden">
-        <div className="bg-white border border-[#8e8e8e] p-4 flex items-center justify-between">
-          <div>
-            <div className="font-extrabold text-[17px]">{state.props.hdrArName || state.props.company}</div>
-            <div className="text-[13px] text-[#555]">
-              الفترة المالية: {state.props.dateFrom} إلى {state.props.dateTo}
+        <ReportHeader
+          props={state.props}
+          subtitle={`الفترة المالية: ${state.props.dateFrom} إلى ${state.props.dateTo}`}
+          meta={
+            <div className="text-left text-[13px] font-bold">
+              <div>العام: {toAr(state.props.year)}</div>
+              <div>المستخدم: {state.currentUser}</div>
             </div>
-          </div>
-          <div className="text-left text-[13px]">
-            <div>العام: {toAr(state.props.year)}</div>
-            <div>المستخدم: {state.currentUser}</div>
-          </div>
-        </div>
+          }
+        />
 
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-white border border-[#999] p-3 text-center">

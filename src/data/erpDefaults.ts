@@ -684,21 +684,22 @@ export function createDefaultInvoiceTemplate(
       ...(overrides?.general || {}),
     },
     columns: {
-      showUnit: false,
+      showUnit: true,
       showBalance: false,
       showQty2: false,
-      showBarcode: true,
+      showBarcode: false,
       showQtyMainUnit: false,
       showQtyFirstUnit: false,
       showQtySecondUnit: false,
       showFactor: false,
       showLocation: false,
       showShortages: false,
+      showLineWarehouse: false,
       useMainUnitsOnly: false,
       showTotalRight: false,
-      showBonus: true,
+      showBonus: false,
       showRowNotes: false,
-      showExpiry: true,
+      showExpiry: false,
       showItemSupplier: false,
       showItemType: false,
       showNetAmount: false,
@@ -1052,6 +1053,39 @@ export const DEFAULT_INVOICE_TEMPLATES: InvoiceTemplateConfig[] = [
   }),
 ];
 
+export const DEFAULT_PRINT_SETUP = {
+  copies: 1,
+  marginTop: 2,
+  marginLeft: 2,
+  marginBottom: 2,
+  marginRight: 2,
+  pageFrame: 'none' as const,
+  tblHdrStyle: 'colors' as const,
+  cellMarginTop: 2,
+  cellMarginRight: 0.5,
+  titleFont: 'Tahoma, 12pt',
+  titleHeightRatio: 8,
+  tableFont: 'Tahoma, 10pt',
+  tableHeightRatio: 8,
+  totalFont: 'Tahoma, 10pt, Bold',
+  totalHeightRatio: 8,
+  printDir: '',
+  ltrTable: false,
+  footerAfterTable: false,
+  printTableColors: false,
+  printer: '',
+  specialTemplateName: 'نموذج التقرير العام',
+  centerSpecialHeader: false,
+  centerSpecialFooter: false,
+  sharedTemplateName: 'نموذج ترويسة وتذيل مشترك',
+  centerSharedHeader: false,
+  centerSharedFooter: false,
+  orderBySelected: false,
+  showSerial: false,
+  wrapItemName: false,
+  selectedModel: 'form1',
+};
+
 export const INITIAL_STATE: ErpState = {
   currentUser: 'admin',
   activeBranch: '1',
@@ -1214,6 +1248,8 @@ export const INITIAL_STATE: ErpState = {
       gender: 'ذكر',
     },
   ],
+  inventorySheets: [],
+  printSetup: DEFAULT_PRINT_SETUP,
   designerSections: {
     headerFirst: { rows: [], font: 'Tahoma, 10pt' },
     headerRest: { rows: [], font: 'Tahoma, 10pt' },
@@ -1245,7 +1281,7 @@ export const INITIAL_STATE: ErpState = {
 };
 
 export const STORAGE_KEY = 'badel_soft_pro_state_v1';
-export const STORAGE_VERSION = 2;
+export const STORAGE_VERSION = 3;
 const STORAGE_VERSION_KEY = 'badel_soft_pro_state_version';
 
 export function loadErpState(): ErpState {
@@ -1257,9 +1293,9 @@ export function loadErpState(): ErpState {
     let invoiceTemplates = parsed.invoiceTemplates?.length
       ? parsed.invoiceTemplates
       : DEFAULT_INVOICE_TEMPLATES;
-    if (storedVersion < 2) {
-      // ترقية مرة واحدة: إظهار أعمدة شاشة الفاتورة المطابقة للنموذج الأصلي
-      // في النموذج الافتراضي فقط، دون المساس بالنماذج المخصصة.
+    if (storedVersion < 3) {
+      // ترقية: مطابقة أعمدة شاشة الفاتورة الافتراضية للنموذج الأصلي
+      // (الرمز والوحدة والسعر والإجمالي فقط) دون المساس بالنماذج المخصصة.
       invoiceTemplates = invoiceTemplates.map((t) => {
         if (!t.isDefault) return t;
         const cols = t.columns || ({} as InvoiceTemplateConfig['columns']);
@@ -1276,21 +1312,20 @@ export function loadErpState(): ErpState {
           },
           columns: {
             ...cols,
-            showBarcode: cols.showBarcode === false ? true : cols.showBarcode,
-            showBonus: cols.showBonus === false ? true : cols.showBonus,
-            showExpiry: cols.showExpiry === false ? true : cols.showExpiry,
-            showUnit: cols.showUnit === true ? false : cols.showUnit,
+            showUnit: true,
+            showBarcode: false,
+            showBonus: false,
+            showExpiry: false,
+            showLineWarehouse: false,
           },
           discountsAndCommissions: {
             ...disc,
-            showDiscountPercent:
-              disc.showDiscountPercent === false ? true : disc.showDiscountPercent,
-            showDiscountAmount:
-              disc.showDiscountAmount === false ? true : disc.showDiscountAmount,
+            showDiscountPercent: false,
+            showDiscountAmount: false,
           },
           extraTabs: {
             ...extra,
-            hideItemCode: extra.hideItemCode === false ? true : extra.hideItemCode,
+            hideItemCode: false,
           },
         };
       });
@@ -1375,6 +1410,8 @@ export function loadErpState(): ErpState {
       appointments: Array.isArray(parsed.appointments)
         ? parsed.appointments
         : INITIAL_STATE.appointments,
+      inventorySheets: Array.isArray(parsed.inventorySheets) ? parsed.inventorySheets : [],
+      printSetup: { ...DEFAULT_PRINT_SETUP, ...(parsed.printSetup || {}) },
       designerSections: {
         headerFirst:
           parsed.designerSections?.headerFirst || INITIAL_STATE.designerSections.headerFirst,

@@ -51,6 +51,7 @@ import { UsersDialog } from './components/UsersDialog';
 import { loadErpState, saveErpState } from './data/erpDefaults';
 import type {
   ErpState,
+  JournalEntry,
   ErpUser,
   ExtractedInvoiceData,
   MsgConfig,
@@ -763,6 +764,7 @@ export default function App() {
         <div className="flex-1 flex flex-col bg-[#dce4f0] border border-[#3a3a3a] overflow-hidden">
           <TitleBar
             isMain
+            logo={state.props.logoData || undefined}
             title={state.props.company || 'النظام'}
             onMinimize={() => setMinimizedShell(true)}
             onMaximize={() => notify('النظام يعمل بملء الشاشة')}
@@ -961,6 +963,8 @@ export default function App() {
         open={openWindows.printSetup}
         zIndex={zOrder.printSetup}
         templates={state.reportTemplates}
+        setup={state.printSetup}
+        onSaveSetup={(setup) => setState((prev) => ({ ...prev, printSetup: setup }))}
         onFocus={() => focusWindow('printSetup')}
         onClose={() => closeWindow('printSetup')}
         onOpenPages={(opts) => {
@@ -1294,6 +1298,8 @@ export default function App() {
         currencies={state.currencies}
         reportTemplates={state.reportTemplates}
         designerSections={state.designerSections}
+        inventorySheets={state.inventorySheets}
+        printSetup={state.printSetup}
         companyProps={state.props}
         onFocus={() => focusWindow('invoices')}
         onClose={() => closeWindow('invoices')}
@@ -1306,6 +1312,82 @@ export default function App() {
                 ? prev.invoices.map((x) => (x.id === inv.id ? inv : x))
                 : [inv, ...prev.invoices],
             };
+          })
+        }
+        onSaveInventorySheet={(sheet) =>
+          setState((prev) => {
+            const exists = prev.inventorySheets.some((x) => x.id === sheet.id);
+            return {
+              ...prev,
+              inventorySheets: exists
+                ? prev.inventorySheets.map((x) => (x.id === sheet.id ? sheet : x))
+                : [sheet, ...prev.inventorySheets],
+            };
+          })
+        }
+        onDeleteInventorySheet={(id) =>
+          setState((prev) => ({
+            ...prev,
+            inventorySheets: prev.inventorySheets.filter((x) => x.id !== id),
+          }))
+        }
+        onApproveInventorySheet={(sheet) =>
+          setState((prev) => {
+            const findLine = (code: string, name: string) =>
+              sheet.lines.find(
+                (l) =>
+                  (code && l.code && l.code === code) ||
+                  (name && l.name && l.name === name)
+              );
+
+            const materials = prev.importedMaterials.map((m) => {
+              const line = findLine(m.code, m.name);
+              if (!line) return m;
+              const current = Number(m.qty) || 0;
+              const counted = Number(line.countQty) || 0;
+              const nextQty =
+                sheet.kind === 'opening'
+                  ? counted
+                  : current + (counted - (Number(line.qty) || 0));
+              return { ...m, qty: String(Math.max(0, Number(nextQty.toFixed(2)))) };
+            });
+
+            const diffValue = sheet.lines.reduce(
+              (sum, l) =>
+                sum +
+                ((Number(l.countQty) || 0) - (Number(l.qty) || 0)) *
+                  (Number(l.price) || 0),
+              0
+            );
+
+            let journal = prev.journal;
+            if (Math.abs(diffValue) > 0.004) {
+              const isSurplus = diffValue > 0;
+              const stamp = new Date().toISOString();
+              const entry: JournalEntry = {
+                id: `jv-inv-${Date.now()}`,
+                rec: Math.abs(diffValue).toFixed(2),
+                pay: '',
+                dhm: '0.00',
+                from: isSurplus
+                  ? sheet.surplusAccount || 'حساب الفائض'
+                  : sheet.shortageAccount || 'حساب العجز',
+                to: sheet.warehouse || 'المخزون',
+                cur: sheet.currency || 'ريال يمني',
+                stmt: `تسوية جرد رقم ${sheet.sheetNo}${
+                  sheet.kind === 'opening' ? ' (جرد إفتتاحي)' : ''
+                }`,
+                doc: sheet.docNumber || sheet.sheetNo,
+                by: prev.currentUser,
+                at: stamp,
+                voucherType: 'entry',
+                posted: true,
+                postedAt: stamp,
+              };
+              journal = [entry, ...prev.journal];
+            }
+
+            return { ...prev, importedMaterials: materials, journal };
           })
         }
         onDeleteInvoice={(id) =>
