@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { toAr } from '../data/erpDefaults';
 import type {
   AttendanceRecord,
@@ -10,6 +10,7 @@ import type {
   LeaveRecord,
   MsgConfig,
 } from '../types/erp';
+import { exportElementToPdf, printArea } from '../lib/docExport';
 import { ReportHeader } from './ReportHeader';
 import { DraggableWindow } from './DraggableWindow';
 
@@ -973,6 +974,7 @@ export const ReportsSuiteDialog: React.FC<ReportsSuiteDialogProps> = ({
   onNotify,
 }) => {
   const today = new Date().toISOString().slice(0, 10);
+  const printAreaRef = useRef<HTMLDivElement | null>(null);
   const [dateFrom, setDateFrom] = useState(`${state.props.year}-01-01`);
   const [dateTo, setDateTo] = useState(today);
   const [filterText, setFilterText] = useState('');
@@ -1223,14 +1225,23 @@ export const ReportsSuiteDialog: React.FC<ReportsSuiteDialogProps> = ({
       onClose={onClose}
     >
       <div className="flex-1 flex flex-col bg-[#dce4ee] p-3 gap-2.5 overflow-hidden text-[13px]">
+        <div
+          ref={printAreaRef}
+          data-print-report
+          className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-auto erp-scrollbar bg-[#dce4ee]"
+        >
         <ReportHeader
           props={state.props}
           compact
           subtitle={REPORT_TITLES[mode]}
-          meta={<span className="text-[#555] font-bold">العام: {toAr(state.props.year)}</span>}
+          meta={
+            <span className="text-[#555] font-bold">
+              من {dateFrom} إلى {dateTo} — العام: {toAr(state.props.year)}
+            </span>
+          }
         />
         {/* Filters */}
-        <div className="bg-[#f4f6fa] border border-[#b9c4d4] p-2.5 flex flex-wrap items-center gap-2">
+        <div className="bg-[#f4f6fa] border border-[#b9c4d4] p-2.5 flex flex-wrap items-center gap-2 print:hidden">
           <span className="font-bold">{state.props.hdrArName || state.props.company}</span>
           <span className="text-[#555]">| العام: {toAr(state.props.year)}</span>
           <div className="flex-1" />
@@ -1272,7 +1283,7 @@ export const ReportsSuiteDialog: React.FC<ReportsSuiteDialogProps> = ({
 
         {/* Special actions for Closing Entries & Next Period Prep */}
         {mode === 'organizeClosingEntries' && (
-          <div className="bg-[#fff8e6] border border-[#d6b669] p-3 flex items-center justify-between gap-3">
+          <div className="bg-[#fff8e6] border border-[#d6b669] p-3 flex items-center justify-between gap-3 print:hidden">
             <span className="font-bold">
               توليد وترحيل قيد إقفال الإيرادات والمصروفات إلى حساب الأرباح والخسائر ({toAr(state.props.year)}):
             </span>
@@ -1314,7 +1325,7 @@ export const ReportsSuiteDialog: React.FC<ReportsSuiteDialogProps> = ({
         )}
 
         {mode === 'nextPeriodPrep' && (
-          <div className="bg-[#eaf4ff] border border-[#7ea7d8] p-3 flex items-center justify-between gap-3">
+          <div className="bg-[#eaf4ff] border border-[#7ea7d8] p-3 flex items-center justify-between gap-3 print:hidden">
             <span className="font-bold">
               التهيئة لدورة مالية قادمة: تدوير الأرصدة الافتتاحية والانتقال إلى السنة {toAr(state.props.year + 1)}
             </span>
@@ -1380,24 +1391,50 @@ export const ReportsSuiteDialog: React.FC<ReportsSuiteDialogProps> = ({
         {/* Footer */}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
           <div className="font-bold text-[#0f3d6e]">{reportData.summaryLine}</div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 print:hidden">
             <button type="button" onClick={exportCsv} className="erp-classic-btn px-4 h-[28px]">
               تصدير اكسل CSV
             </button>
             <button
               type="button"
               onClick={() => {
-                window.print();
+                printArea();
                 onNotify('تم إرسال التقرير للطباعة');
               }}
               className="erp-classic-btn focused px-4 h-[28px]"
             >
               طباعة
             </button>
+            <button
+              type="button"
+              onClick={async () => {
+                const area = printAreaRef.current;
+                if (!area) {
+                  onNotify('لا يوجد تقرير معروض للتصدير');
+                  return;
+                }
+                try {
+                  onNotify('جارٍ تجهيز ملف PDF…');
+                  await exportElementToPdf(
+                    area,
+                    `${REPORT_TITLES[mode]}-${state.props.year}`,
+                    { margins: [10, 8, 10, 8], landscape: reportData.columns.length > 8 }
+                  );
+                  onNotify('تم تصدير التقرير إلى PDF');
+                } catch (err) {
+                  console.error(err);
+                  onNotify('تعذّر تصدير PDF — استخدم زر الطباعة ثم حفظ كملف PDF');
+                }
+              }}
+              className="erp-classic-btn px-4 h-[28px] font-bold"
+            >
+              PDF
+            </button>
             <button type="button" onClick={onClose} className="erp-classic-btn px-4 h-[28px]">
               خروج
             </button>
           </div>
+        </div>
         </div>
       </div>
     </DraggableWindow>

@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { toAr } from '../data/erpDefaults';
 import type { CustomAccountRecord, JournalEntry, MsgConfig } from '../types/erp';
+import { exportElementToPdf } from '../lib/docExport';
 import { ReportHeader } from './ReportHeader';
 import { DraggableWindow } from './DraggableWindow';
 
@@ -676,6 +677,7 @@ export const DetailedAccountStatementDialog: React.FC<DetailedAccountStatementDi
   const [hideCompoundDetails, setHideCompoundDetails] = useState(false);
 
   const [viewResults, setViewResults] = useState(false);
+  const statementPrintRef = useRef<HTMLDivElement | null>(null);
   const [treePickerOpen, setTreePickerOpen] = useState(false);
 
   useEffect(() => {
@@ -1276,6 +1278,11 @@ export const DetailedAccountStatementDialog: React.FC<DetailedAccountStatementDi
         ) : (
           /* Statement Results Table View */
           <div className="flex-1 flex flex-col bg-[#f0f0f0] p-3 overflow-hidden gap-2.5">
+            <div
+              ref={statementPrintRef}
+              data-print-report
+              className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-auto erp-scrollbar bg-[#f0f0f0]"
+            >
             <ReportHeader
               compact
               subtitle={`كشف حساب تفصيلي: ${accountName}`}
@@ -1354,6 +1361,7 @@ export const DetailedAccountStatementDialog: React.FC<DetailedAccountStatementDi
               </table>
             </div>
 
+            </div>
             <div className="flex items-center justify-between pt-1">
               <button
                 type="button"
@@ -1369,6 +1377,31 @@ export const DetailedAccountStatementDialog: React.FC<DetailedAccountStatementDi
                   className="erp-classic-btn px-4 h-[30px] text-[13px]"
                 >
                   طباعة
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const area = statementPrintRef.current;
+                    if (!area) {
+                      onNotify('لا يوجد كشف معروض للتصدير');
+                      return;
+                    }
+                    try {
+                      onNotify('جارٍ تجهيز ملف PDF…');
+                      await exportElementToPdf(
+                        area,
+                        `كشف حساب-${accountName}-${fromDate}_${toDate}`,
+                        { margins: [10, 8, 10, 8], landscape: true }
+                      );
+                      onNotify('تم تصدير كشف الحساب إلى PDF');
+                    } catch (err) {
+                      console.error(err);
+                      onNotify('تعذّر تصدير PDF — استخدم زر الطباعة ثم حفظ كملف PDF');
+                    }
+                  }}
+                  className="erp-classic-btn px-4 h-[30px] text-[13px] font-bold"
+                >
+                  PDF
                 </button>
                 <button
                   type="button"

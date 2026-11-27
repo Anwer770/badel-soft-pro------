@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   createBlankInvoiceTemplate,
   createDefaultInvoiceTemplate,
+  DEFAULT_INVOICE_LABEL_PROPS,
   DEFAULT_INVOICE_PRINT_PROPS,
   DEFAULT_INVOICE_SCALE_PROPS,
   DEFAULT_INVOICE_TABLE_COLUMNS,
@@ -14,6 +15,7 @@ import type {
   CustomAccountRecord,
   EmployeeRecord,
   ErpUser,
+  InvoiceLabelPropsConfig,
   InvoicePrintPropsConfig,
   InvoiceScalePropsConfig,
   InvoiceTableColumnConfig,
@@ -101,6 +103,7 @@ type TabId =
   | 'users'
   | 'medical'
   | 'scale'
+  | 'labelProps'
   | 'window'
   | 'general'
   | 'showFields'
@@ -114,16 +117,17 @@ const TOP_TABS: { id: TabId; label: string }[] = [
   { id: 'price', label: 'السعر' },
   { id: 'searchConds', label: 'شروط بحث المواد' },
   { id: 'salesTax', label: 'ضريبة المبيعات' },
-  { id: 'documents', label: 'المستندين' },
-  { id: 'users', label: 'المستخدمين' },
+  { id: 'documents', label: 'المستخلصين' },
   { id: 'medical', label: 'خيارات النظام الطبي' },
   { id: 'scale', label: 'خصائص الميزان' },
+  { id: 'labelProps', label: 'خصائص اللاقة' },
   { id: 'window', label: 'خصائص النافذة' },
+  { id: 'users', label: 'المستخدمين' },
 ];
 
 const BOTTOM_TABS: { id: TabId; label: string }[] = [
   { id: 'general', label: 'خصائص عامة' },
-  { id: 'showFields', label: 'إظهار الحقول' },
+  { id: 'showFields', label: 'إظهار الحقوق' },
   { id: 'salesExpenses', label: 'مبيعات والمصاريف' },
   { id: 'discountsCommissions', label: 'الخصميات والعمولات' },
   { id: 'additional', label: 'خصائص إضافية' },
@@ -435,6 +439,16 @@ export const InvoiceTemplateEditorDialog: React.FC<InvoiceTemplateEditorProps> =
     setTpl((prev) => ({
       ...prev,
       scaleProps: { ...(prev.scaleProps || DEFAULT_INVOICE_SCALE_PROPS), [key]: val },
+    }));
+  };
+
+  const setLabelProp = <K extends keyof InvoiceLabelPropsConfig>(
+    key: K,
+    val: InvoiceLabelPropsConfig[K]
+  ) => {
+    setTpl((prev) => ({
+      ...prev,
+      labelProps: { ...(prev.labelProps || DEFAULT_INVOICE_LABEL_PROPS), [key]: val },
     }));
   };
 
@@ -1106,6 +1120,29 @@ export const InvoiceTemplateEditorDialog: React.FC<InvoiceTemplateEditorProps> =
                     </div>
                     <div className="md:col-span-3 flex flex-col gap-1.5">
                       <div className="flex items-center gap-1">
+                        <span className="font-bold shrink-0">الحساب المسموح به</span>
+                        <input
+                          value={tpl.discountsAndCommissions.allowedDiscountAccount || ''}
+                          onChange={(e) =>
+                            setDiscComm('allowedDiscountAccount', e.target.value)
+                          }
+                          className="erp-field flex-1 bg-white text-center"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openAccountLookup(
+                              'الحساب المسموح به',
+                              (v) => setDiscComm('allowedDiscountAccount', v),
+                              tpl.discountsAndCommissions.allowedDiscountAccount || ''
+                            )
+                          }
+                          className="erp-classic-btn px-2 h-[24px]"
+                        >
+                          بحث
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-1">
                         <input
                           value={tpl.discountsAndCommissions.defaultDiscountAccount}
                           onChange={(e) =>
@@ -1756,7 +1793,7 @@ export const InvoiceTemplateEditorDialog: React.FC<InvoiceTemplateEditorProps> =
               return (
                 <div className="flex flex-col gap-2 h-full">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold">قائمة المستندين</span>
+                    <span className="font-bold">قائمة المستخلصين</span>
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
@@ -2039,6 +2076,20 @@ export const InvoiceTemplateEditorDialog: React.FC<InvoiceTemplateEditorProps> =
                         </select>
                       </div>
                       <div className="flex items-center gap-2">
+                        <span className="font-bold w-[135px] shrink-0">الطباعة الافتراضية</span>
+                        <select
+                          value={pp.defaultPrintTemplate}
+                          onChange={(e) => setPrintProp('defaultPrintTemplate', e.target.value)}
+                          className="erp-field flex-1 bg-white text-center font-bold"
+                        >
+                          {printTplChoices.map((pt) => (
+                            <option key={`d-${pt || 'empty'}`} value={pt}>
+                              {pt}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-2">
                         <span className="font-bold w-[135px] shrink-0">نموذج الطباعة</span>
                         <select
                           value={pp.printTemplate}
@@ -2262,6 +2313,150 @@ export const InvoiceTemplateEditorDialog: React.FC<InvoiceTemplateEditorProps> =
                         })}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {activeTab === 'labelProps' && (() => {
+              const lp: InvoiceLabelPropsConfig =
+                tpl.labelProps || DEFAULT_INVOICE_LABEL_PROPS;
+              return (
+                <div className="flex flex-col gap-3 px-3 py-2.5 text-[12px] h-full overflow-y-auto erp-scrollbar">
+                  <fieldset className="border border-[#c5cedb] p-2.5">
+                    <legend className="px-1 font-bold">ملصقات المواد (اللاقة)</legend>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2">
+                      <div className="flex flex-col gap-2">
+                        <label className="flex items-center gap-2 font-bold cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={lp.showLabels}
+                            onChange={(e) => setLabelProp('showLabels', e.target.checked)}
+                          />
+                          <span>إظهار الملصقات</span>
+                        </label>
+                        <label className="flex items-center gap-2 font-bold cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={lp.printWithInvoice}
+                            onChange={(e) => setLabelProp('printWithInvoice', e.target.checked)}
+                          />
+                          <span>طباعة الملصقات مع الفاتورة</span>
+                        </label>
+                        <label className="flex items-center gap-2 font-bold cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={lp.showBarcode}
+                            onChange={(e) => setLabelProp('showBarcode', e.target.checked)}
+                          />
+                          <span>إظهار الباركود</span>
+                        </label>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="flex items-center gap-2 font-bold cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={lp.showItemName}
+                            onChange={(e) => setLabelProp('showItemName', e.target.checked)}
+                          />
+                          <span>إظهار اسم المادة</span>
+                        </label>
+                        <label className="flex items-center gap-2 font-bold cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={lp.showPrice}
+                            onChange={(e) => setLabelProp('showPrice', e.target.checked)}
+                          />
+                          <span>إظهار السعر</span>
+                        </label>
+                        <label className="flex items-center gap-2 font-bold cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={lp.showCompanyName}
+                            onChange={(e) => setLabelProp('showCompanyName', e.target.checked)}
+                          />
+                          <span>إظهار اسم الشركة</span>
+                        </label>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold">عدد النسخ لكل مادة</span>
+                          <input
+                            type="number"
+                            min={1}
+                            value={lp.copiesPerItem}
+                            onChange={(e) => setLabelProp('copiesPerItem', Number(e.target.value) || 1)}
+                            className="erp-field w-[70px] bg-white text-center"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold">عرض الملصق (ملم)</span>
+                          <input
+                            type="number"
+                            min={10}
+                            value={lp.labelWidthMm}
+                            onChange={(e) => setLabelProp('labelWidthMm', Number(e.target.value) || 0)}
+                            className="erp-field w-[70px] bg-white text-center"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold">طول الملصق (ملم)</span>
+                          <input
+                            type="number"
+                            min={10}
+                            value={lp.labelHeightMm}
+                            onChange={(e) => setLabelProp('labelHeightMm', Number(e.target.value) || 0)}
+                            className="erp-field w-[70px] bg-white text-center"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold">عدد الأعمدة بالورقة</span>
+                          <input
+                            type="number"
+                            min={1}
+                            value={lp.columnsPerRow}
+                            onChange={(e) => setLabelProp('columnsPerRow', Number(e.target.value) || 1)}
+                            className="erp-field w-[70px] bg-white text-center"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </fieldset>
+
+                  {/* معاينة الملصق */}
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="bg-white border border-[#8e8e8e] p-1.5 flex flex-col items-center justify-center gap-0.5 text-center"
+                      style={{
+                        width: Math.max(120, lp.labelWidthMm * 2.6),
+                        height: Math.max(70, lp.labelHeightMm * 2.6),
+                      }}
+                    >
+                      {lp.showCompanyName && (
+                        <div className="font-bold text-[10px] truncate w-full">بديل سوفت برو</div>
+                      )}
+                      {lp.showItemName && (
+                        <div className="text-[11px] truncate w-full">اسم المادة</div>
+                      )}
+                      {lp.showPrice && <div className="text-[11px] font-bold">0.00</div>}
+                      {lp.showBarcode && (
+                        <div className="flex items-end gap-[1px] h-[18px]" dir="ltr">
+                          {Array.from({ length: 26 }).map((_, i) => (
+                            <span
+                              key={i}
+                              className="bg-black inline-block"
+                              style={{ width: i % 3 === 0 ? 2 : 1, height: i % 4 === 0 ? 18 : 13 }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-[#444] leading-5">
+                      <div className="font-bold text-[12px]">معاينة الملصق</div>
+                      <div>المقاس: {lp.labelWidthMm} × {lp.labelHeightMm} ملم</div>
+                      <div>عدد النسخ لكل مادة: {lp.copiesPerItem}</div>
+                      <div>يُطبع الملصق تلقائيًا عند حفظ الفاتورة إذا كان «طباعة الملصقات مع الفاتورة» محدَّدًا.</div>
+                    </div>
                   </div>
                 </div>
               );

@@ -64,6 +64,8 @@ export interface CustomAccountRecord {
   isAggregate?: boolean;
   phone?: string;
   address?: string;
+  email?: string;
+  fax?: string;
   notes?: string;
   imageData?: string;
 }
@@ -247,6 +249,8 @@ export interface InvoiceLineItem {
   expiryDate?: string;
   /** مستودع السطر؛ إن كان فارغًا يُستخدم مستودع ترويسة الفاتورة. */
   warehouse?: string;
+  /** ملاحظات السطر (عمود «الملاحظات») */
+  note?: string;
 }
 
 export interface InvoiceRecord {
@@ -385,6 +389,8 @@ export interface InvoiceTemplateConfig {
   discountsAndCommissions: {
     discountMode: 'disabled' | 'perItemSingle' | 'totalSingle';
     defaultDiscountAccount: string;
+    /** الحساب المسموح به للخصم (سقف الخصم يُقيَّد بهذا الحساب) */
+    allowedDiscountAccount?: string;
     showDiscountAccount: boolean;
     showDiscountPercent: boolean;
     showDiscountAmount: boolean;
@@ -478,6 +484,7 @@ export interface InvoiceTemplateConfig {
   tableColumns?: InvoiceTableColumnConfig[];
   scaleProps?: InvoiceScalePropsConfig;
   windowProps?: InvoiceWindowPropsConfig;
+  labelProps?: InvoiceLabelPropsConfig;
 }
 
 export interface InvoiceScalePropsConfig {
@@ -524,7 +531,22 @@ export interface InvoiceWindowPropsConfig {
   saveButtonRowHeight: string;
 }
 
+export interface InvoiceLabelPropsConfig {
+  showLabels: boolean;
+  printWithInvoice: boolean;
+  copiesPerItem: number;
+  labelWidthMm: number;
+  labelHeightMm: number;
+  showBarcode: boolean;
+  showItemName: boolean;
+  showPrice: boolean;
+  showCompanyName: boolean;
+  columnsPerRow: number;
+}
+
 export interface InvoicePrintPropsConfig {
+  /** النموذج المستخدم افتراضيًا عند الطباعة */
+  defaultPrintTemplate: string;
   defaultPrinter: string;
   printer2: string;
   printTemplate: string;

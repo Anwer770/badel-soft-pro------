@@ -2,6 +2,7 @@ import type {
   AccountOptionsState,
   ErpState,
   GeneralPropsState,
+  InvoiceLabelPropsConfig,
   InvoicePrintPropsConfig,
   InvoiceScalePropsConfig,
   InvoiceTableColumnConfig,
@@ -901,6 +902,7 @@ export function createBlankInvoiceTemplate(id: string): InvoiceTemplateConfig {
     },
     printProps: {
       ...DEFAULT_INVOICE_PRINT_PROPS,
+      defaultPrintTemplate: 'نموذج طباعة ١',
       defaultPrinter: '',
       printer2: '',
       printTemplate: '',
@@ -920,6 +922,19 @@ export const DEFAULT_INVOICE_SCALE_PROPS: InvoiceScalePropsConfig = {
   valueMode: 'price',
   scalePriceIncludesTax: false,
   fixQtyToOne: false,
+};
+
+export const DEFAULT_INVOICE_LABEL_PROPS: InvoiceLabelPropsConfig = {
+  showLabels: false,
+  printWithInvoice: false,
+  copiesPerItem: 1,
+  labelWidthMm: 50,
+  labelHeightMm: 30,
+  showBarcode: true,
+  showItemName: true,
+  showPrice: true,
+  showCompanyName: true,
+  columnsPerRow: 3,
 };
 
 export const DEFAULT_INVOICE_WINDOW_PROPS: InvoiceWindowPropsConfig = {
@@ -954,6 +969,7 @@ export const DEFAULT_INVOICE_WINDOW_PROPS: InvoiceWindowPropsConfig = {
 };
 
 export const DEFAULT_INVOICE_PRINT_PROPS: InvoicePrintPropsConfig = {
+  defaultPrintTemplate: 'نموذج طباعة ١',
   defaultPrinter: '',
   printer2: '',
   printTemplate: 'نموذج طباعة ١',

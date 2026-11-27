@@ -1347,11 +1347,30 @@ export default function App() {
               if (!line) return m;
               const current = Number(m.qty) || 0;
               const counted = Number(line.countQty) || 0;
-              const nextQty =
-                sheet.kind === 'opening'
-                  ? counted
-                  : current + (counted - (Number(line.qty) || 0));
-              return { ...m, qty: String(Math.max(0, Number(nextQty.toFixed(2)))) };
+              const shown = Number(line.qty) || 0;
+              const linePrice = Number(line.price) || 0;
+              const nextQtyRaw =
+                sheet.kind === 'opening' ? counted : current + (counted - shown);
+              const nextQty = Math.max(0, Number(nextQtyRaw.toFixed(2)));
+              const currentCost = Number(m.purchasePrice) || 0;
+
+              // متوسط التكلفة المرجّح عند زيادة الكمية بسعر مختلف
+              let nextCost = currentCost;
+              if (sheet.kind === 'opening' && linePrice > 0) {
+                nextCost = linePrice;
+              } else if (nextQty > 0 && linePrice > 0) {
+                const added = counted - shown;
+                if (added > 0) {
+                  const totalCost = current * currentCost + added * linePrice;
+                  nextCost = Number((totalCost / nextQty).toFixed(4));
+                }
+              }
+
+              return {
+                ...m,
+                qty: String(nextQty),
+                purchasePrice: String(Number(nextCost.toFixed(2))),
+              };
             });
 
             const diffValue = sheet.lines.reduce(
