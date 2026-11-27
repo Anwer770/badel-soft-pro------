@@ -140,6 +140,7 @@ const KIND_MENU_ITEMS: { label: string; kind?: string }[] = [
   { label: 'العمود' },
   { label: 'الصف' },
   { label: 'العبوة' },
+  { label: 'لائحة أسعار المواد' },
 ];
 
 const DEFAULT_ACCOUNT_LIST = [
@@ -371,6 +372,8 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
     }
     if (t.general.useDefaultCurrency) setCurrency(t.general.defaultCurrency);
     if (t.general.defaultCostCenter) setCostCenter(t.general.defaultCostCenter);
+    const tplDefaultPrint = t.printProps?.defaultPrintTemplate || t.printProps?.printTemplate;
+    if (tplDefaultPrint) setConfirmPrintTemplate(tplDefaultPrint);
     onNotify(`تم تطبيق النموذج: ${t.name}`);
   };
 
@@ -435,6 +438,12 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
   const showCodeCol = !activeTpl.columns.showBarcode && !activeTpl.extraTabs.hideItemCode;
   const showLineWarehouseCol =
     Boolean(activeTpl.columns.showLineWarehouse) && !isSimpleDoc;
+  // عمود «الملاحظات» يظهر بخصائص النموذج، ويُفعَّل تلقائيًا في المشتريات ومردوداتها
+  const showRowNotesCol =
+    !isSimpleDoc &&
+    (Boolean(activeTpl.columns.showRowNotes) ||
+      kindTitle.includes('مشتريات') ||
+      kindTitle.includes('مردود مشتريات'));
   const colWidthPx = (id: string, fallback: string) => {
     const raw = activeTpl.tableColumns?.find((c) => c.id === id)?.width?.trim();
     const n = raw ? Number(raw) : NaN;
@@ -780,7 +789,11 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
       const cashFinal = cashOverride !== undefined ? Number(cashOverride) || 0 : effectiveCashPaid;
       const netFinal = netOverride !== undefined ? Number(netOverride) || 0 : Number(networkPaid) || 0;
       const chosenPrintTpl =
-        printTplOverride || confirmPrintTemplate || activeTpl.printProps?.printTemplate || 'نموذج طباعة ١';
+        printTplOverride ||
+        confirmPrintTemplate ||
+        activeTpl.printProps?.defaultPrintTemplate ||
+        activeTpl.printProps?.printTemplate ||
+        'نموذج طباعة ١';
 
       const record: InvoiceRecord = {
         id: editingId || `inv-${Date.now()}`,
@@ -941,6 +954,11 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
     handleSave,
     confirmAndPersistSave,
   ]);
+
+  const [fetchMenuOpen, setFetchMenuOpen] = useState(false);
+  const [warehousePickerOpen, setWarehousePickerOpen] = useState(false);
+  const [priceListOpen, setPriceListOpen] = useState(false);
+  const [priceListQuery, setPriceListQuery] = useState('');
 
   const openFetchDialog = () => {
     setFetchAccount('');
@@ -1340,6 +1358,14 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                           </option>
                         ))}
                       </select>
+                      <button
+                        type="button"
+                        disabled={activeTpl.additional.lockWarehouse}
+                        onClick={() => setWarehousePickerOpen(true)}
+                        className="erp-classic-btn px-2 h-[26px] text-[12px] font-bold disabled:opacity-50"
+                      >
+                        بحث
+                      </button>
                     </div>
                     {activeTpl.general.showPrevBalance && (
                       <div className="flex items-center gap-1.5">
@@ -1516,6 +1542,11 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                               {activeTpl.columns.showExpiry && !isSimpleDoc && (
                                 <th className="py-1 px-2 border-l border-[#666] w-[95px]">
                                   {colLabel('expiryDate', 'تاريخ الصلاحية')}
+                                </th>
+                              )}
+                              {showRowNotesCol && (
+                                <th className="py-1 px-2 border-l border-[#666] w-[130px]">
+                                  {colLabel('note', 'الملاحظات')}
                                 </th>
                               )}
                               <th className="py-1 px-1.5 w-[52px] bg-[#eceef4] border-r border-[#888]">
@@ -1793,6 +1824,15 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                                   placeholder="YYYY/MM/DD"
                                   onChange={(e) => updateLine(idx, 'expiryDate', e.target.value)}
                                   className="w-full h-[24px] px-1 text-center bg-transparent outline-none focus:bg-[#e5f1fb]"
+                                />
+                              </td>
+                            )}
+                            {showRowNotesCol && (
+                              <td className="p-0 border-l border-[#bbb]">
+                                <input
+                                  value={it.note || ''}
+                                  onChange={(e) => updateLine(idx, 'note', e.target.value)}
+                                  className="w-full h-[24px] px-1 bg-transparent outline-none focus:bg-[#e5f1fb]"
                                 />
                               </td>
                             )}
@@ -2113,7 +2153,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                       type="button"
                       onClick={() => {
                         setKindMenuOpen(false);
-                        openFetchDialog();
+                        setFetchMenuOpen((v) => !v);
                       }}
                       className={BAR_BTN_SALES}
                     >
@@ -2203,7 +2243,7 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                         type="button"
                         onClick={() => {
                           setKindMenuOpen(false);
-                          openFetchDialog();
+                          setFetchMenuOpen((v) => !v);
                         }}
                         className={`${BAR_BTN} ${isReturnDoc ? 'w-[96px]' : 'w-[76px]'}`}
                       >
@@ -2267,6 +2307,11 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                           type="button"
                           onClick={() => {
                             setKindMenuOpen(false);
+                            if (item.label === 'لائحة أسعار المواد') {
+                              setPriceListQuery('');
+                              setPriceListOpen(true);
+                              return;
+                            }
                             if (!item.kind) {
                               onNotify(`شاشة «${item.label}» تُفتح من القائمة الرئيسية`);
                               return;
@@ -2627,6 +2672,255 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
         </div>
       )}
 
+      {/* قائمة المستودعات */}
+      {warehousePickerOpen && (
+        <div className="fixed inset-0 z-[9998] bg-black/20 flex items-center justify-center p-4">
+          <div className="bg-[#f0f0f0] border border-[#666] w-[560px] max-h-[440px] flex flex-col shadow-2xl">
+            <div className="bg-[#dfe6f0] border-b border-[#9aa7b8] px-3 py-1.5 font-bold flex justify-between items-center">
+              <span>قائمة المستودعات</span>
+              <button
+                type="button"
+                onClick={() => setWarehousePickerOpen(false)}
+                className="px-2 font-bold cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto bg-white erp-scrollbar">
+              <table className="w-full border-collapse text-[12px]">
+                <thead className="sticky top-0">
+                  <tr className="bg-[#0a63c8] text-white">
+                    <th className="border border-[#8ea9c7] p-1.5 w-[80px]">الرمز</th>
+                    <th className="border border-[#8ea9c7] p-1.5">اسم المستودع</th>
+                    <th className="border border-[#8ea9c7] p-1.5">العنوان</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {warehouses.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="p-6 text-center text-[#666]">
+                        لا توجد مستودعات معرّفة.
+                      </td>
+                    </tr>
+                  ) : (
+                    warehouses.map((w, idx) => (
+                      <tr
+                        key={w.id}
+                        onClick={() => setWarehouse(w.name)}
+                        onDoubleClick={() => {
+                          setWarehouse(w.name);
+                          setWarehousePickerOpen(false);
+                        }}
+                        className={`cursor-pointer ${
+                          warehouse === w.name
+                            ? 'bg-[#0a63c8] text-white font-bold'
+                            : idx % 2
+                              ? 'bg-[#fffde3]'
+                              : 'bg-white'
+                        }`}
+                      >
+                        <td className="border border-[#d5dce6] p-1.5 text-center">{w.code}</td>
+                        <td className="border border-[#d5dce6] p-1.5 font-bold">{w.name}</td>
+                        <td className="border border-[#d5dce6] p-1.5 text-center">{w.location || '—'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex items-center justify-center gap-6 px-3 py-2 border-t border-[#9aa7b8]">
+              <button
+                type="button"
+                onClick={() => setWarehousePickerOpen(false)}
+                className="erp-classic-btn w-[130px] h-[28px]"
+              >
+                خروج
+              </button>
+              <button
+                type="button"
+                onClick={() => setWarehousePickerOpen(false)}
+                className="erp-classic-btn focused w-[130px] h-[28px]"
+              >
+                موافق
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* قائمة جلب: مستندات + حقول + لائحة أسعار المواد */}
+      {fetchMenuOpen && (
+        <div
+          className="fixed inset-0 z-[9997]"
+          onClick={() => setFetchMenuOpen(false)}
+          role="presentation"
+        >
+          <div
+            className="absolute bottom-[96px] left-[300px] w-[238px] max-h-[72vh] overflow-y-auto erp-scrollbar bg-white border border-[#666] shadow-2xl py-1 text-[12px] font-bold"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setFetchMenuOpen(false);
+                openFetchDialog();
+              }}
+              className="w-full text-right px-3 py-[3px] text-[#005499] hover:bg-[#0078d7] hover:text-white cursor-pointer"
+            >
+              جلب فاتورة سابقة…
+            </button>
+            <div className="h-px bg-[#d5d5d5] my-1" />
+            {KIND_MENU_ITEMS.filter((it) => it.kind).map((item) => (
+              <button
+                key={`fm-${item.label}`}
+                type="button"
+                onClick={() => {
+                  setFetchMenuOpen(false);
+                  setKindTitle(item.kind as string);
+                  setViewMode('editor');
+                  resetFormForLaunch({ mode: 'editor', kindTitle: item.kind as string }, activeTpl);
+                  onNotify(`تم فتح ${item.label}`);
+                }}
+                className="w-full text-right px-3 py-[3px] hover:bg-[#0078d7] hover:text-white cursor-pointer"
+              >
+                {item.label}
+              </button>
+            ))}
+            <div className="h-px bg-[#d5d5d5] my-1" />
+            {KIND_MENU_ITEMS.filter((it) => !it.kind).map((item) => (
+              <button
+                key={`fm2-${item.label}`}
+                type="button"
+                onClick={() => {
+                  setFetchMenuOpen(false);
+                  if (item.label === 'لائحة أسعار المواد') {
+                    setPriceListQuery('');
+                    setPriceListOpen(true);
+                    return;
+                  }
+                  onNotify(`شاشة «${item.label}» تُفتح من القائمة الرئيسية`);
+                }}
+                className="w-full text-right px-3 py-[3px] hover:bg-[#0078d7] hover:text-white cursor-pointer"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* لائحة أسعار المواد */}
+      {priceListOpen && (() => {
+        const q = priceListQuery.trim().toLowerCase();
+        const rows = importedMaterials.filter(
+          (m) =>
+            !q ||
+            m.code.toLowerCase().includes(q) ||
+            m.name.toLowerCase().includes(q) ||
+            (m.barcode || '').toLowerCase().includes(q)
+        );
+        const insertRow = (m: ImportedMaterialItem) => {
+          const emptyIdx = items.findIndex((it) => !it.name.trim() && !it.code.trim());
+          if (emptyIdx >= 0) {
+            assignMaterialToRow(emptyIdx, m);
+          } else {
+            setItems((prev) => [
+              ...prev,
+              {
+                id: `line-${Date.now()}`,
+                code: m.code,
+                name: m.name,
+                unit: m.mainUnit || 'حبة',
+                qty: 1,
+                price: Number(m.purchasePrice || '0'),
+                cost: Number(m.purchasePrice || '0'),
+              },
+            ]);
+          }
+          setPriceListOpen(false);
+          onNotify(`تم جلب ${m.name} من لائحة الأسعار`);
+        };
+        return (
+          <div className="fixed inset-0 z-[9998] bg-black/30 flex items-center justify-center p-4">
+            <div className="bg-[#f0f0f0] border-2 border-[#333] w-[640px] max-h-[480px] flex flex-col shadow-xl">
+              <div className="bg-[#dfe6f0] border-b border-[#9aa7b8] px-3 py-1.5 font-bold flex justify-between items-center">
+                <span>لائحة أسعار المواد</span>
+                <button
+                  type="button"
+                  onClick={() => setPriceListOpen(false)}
+                  className="px-2 font-bold cursor-pointer"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="px-3 py-2 bg-[#f4f6fa] border-b border-[#c5cedb] flex items-center gap-2">
+                <span className="font-bold text-[12px]">بحث</span>
+                <input
+                  autoFocus
+                  value={priceListQuery}
+                  onChange={(e) => setPriceListQuery(e.target.value)}
+                  placeholder="رمز أو اسم المادة أو الباركود…"
+                  className="erp-field flex-1 h-[26px] bg-white"
+                />
+              </div>
+              <div className="flex-1 overflow-auto bg-white erp-scrollbar">
+                {rows.length === 0 ? (
+                  <div className="p-6 text-center text-[#666]">لا توجد مواد مطابقة.</div>
+                ) : (
+                  <table className="w-full border-collapse text-[12px]">
+                    <thead className="sticky top-0">
+                      <tr className="bg-[#cfdce8]">
+                        <th className="border border-[#9aa7b8] p-1.5">الرمز</th>
+                        <th className="border border-[#9aa7b8] p-1.5">اسم المادة</th>
+                        <th className="border border-[#9aa7b8] p-1.5">الوحدة</th>
+                        <th className="border border-[#9aa7b8] p-1.5">الباركود</th>
+                        <th className="border border-[#9aa7b8] p-1.5">السعر</th>
+                        <th className="border border-[#9aa7b8] p-1.5">إدراج</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((m) => (
+                        <tr key={`pl-${m.code}-${m.name}`} className="hover:bg-[#eaf3fc]">
+                          <td className="border border-[#d5dce6] p-1.5 text-center">{m.code}</td>
+                          <td className="border border-[#d5dce6] p-1.5 font-bold">{m.name}</td>
+                          <td className="border border-[#d5dce6] p-1.5 text-center">
+                            {m.mainUnit || 'حبة'}
+                          </td>
+                          <td className="border border-[#d5dce6] p-1.5 text-center">
+                            {m.barcode || '—'}
+                          </td>
+                          <td className="border border-[#d5dce6] p-1.5 text-center font-bold">
+                            {Number(m.purchasePrice || 0).toFixed(2)}
+                          </td>
+                          <td className="border border-[#d5dce6] p-1 text-center">
+                            <button
+                              type="button"
+                              onClick={() => insertRow(m)}
+                              className="erp-classic-btn px-2 py-0.5 text-[11px]"
+                            >
+                              جلب
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+              <div className="flex items-center justify-end gap-2 px-3 py-2 border-t border-[#c5cedb]">
+                <button
+                  type="button"
+                  onClick={() => setPriceListOpen(false)}
+                  className="erp-classic-btn px-4 h-[28px]"
+                >
+                  خروج
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* نواقص المواد Modal */}
       {shortagesOpen && (
         <div className="fixed inset-0 z-[9998] bg-black/30 flex items-center justify-center p-4">
@@ -2651,9 +2945,11 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                   <thead>
                     <tr className="bg-[#cfdce8]">
                       <th className="border border-[#9aa7b8] p-1.5">الرمز</th>
-                      <th className="border border-[#9aa7b8] p-1.5">المادة</th>
-                      <th className="border border-[#9aa7b8] p-1.5">الرصيد</th>
-                      <th className="border border-[#9aa7b8] p-1.5">الحد الأدنى</th>
+                      <th className="border border-[#9aa7b8] p-1.5">اسم المادة</th>
+                      <th className="border border-[#9aa7b8] p-1.5">الوحدة</th>
+                      <th className="border border-[#9aa7b8] p-1.5">سعر البيع</th>
+                      <th className="border border-[#9aa7b8] p-1.5">اسم المستودع</th>
+                      <th className="border border-[#9aa7b8] p-1.5">الكمية المتاحة</th>
                       <th className="border border-[#9aa7b8] p-1.5">إدراج</th>
                     </tr>
                   </thead>
@@ -2662,11 +2958,15 @@ export const InvoicesDialog: React.FC<InvoicesDialogProps> = ({
                       <tr key={`${m.code}-${m.name}`}>
                         <td className="border border-[#d5dce6] p-1.5 text-center">{m.code}</td>
                         <td className="border border-[#d5dce6] p-1.5 font-bold">{m.name}</td>
-                        <td className="border border-[#d5dce6] p-1.5 text-center text-rose-700 font-bold">
-                          {m.qty || '0'}
+                        <td className="border border-[#d5dce6] p-1.5 text-center">{m.mainUnit || 'حبة'}</td>
+                        <td className="border border-[#d5dce6] p-1.5 text-center">
+                          {Number(m.purchasePrice || 0).toFixed(2)}
                         </td>
                         <td className="border border-[#d5dce6] p-1.5 text-center">
-                          {m.minLimit || '0'}
+                          {m.warehouse || warehouse || '—'}
+                        </td>
+                        <td className="border border-[#d5dce6] p-1.5 text-center text-rose-700 font-bold">
+                          {m.qty || '0'}
                         </td>
                         <td className="border border-[#d5dce6] p-1 text-center">
                           <button

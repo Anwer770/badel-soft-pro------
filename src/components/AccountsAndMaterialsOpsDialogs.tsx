@@ -78,6 +78,8 @@ export const AccountsOpsDialog: React.FC<AccountsOpsDialogProps> = ({
   const [isAggregate, setIsAggregate] = useState(false);
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [email, setEmail] = useState('');
+  const [fax, setFax] = useState('');
   const [notes, setNotes] = useState('');
   const [imageData, setImageData] = useState<string>('');
   const [selectedCode, setSelectedCode] = useState<string>('');
@@ -161,6 +163,8 @@ export const AccountsOpsDialog: React.FC<AccountsOpsDialogProps> = ({
     setIsAggregate(Boolean(custom?.isAggregate || flat.kind === 'folder'));
     setPhone(custom?.phone || '');
     setAddress(custom?.address || '');
+    setEmail(custom?.email || '');
+    setFax(custom?.fax || '');
     setNotes(custom?.notes || '');
     setImageData(custom?.imageData || '');
   };
@@ -178,6 +182,8 @@ export const AccountsOpsDialog: React.FC<AccountsOpsDialogProps> = ({
       isAggregate,
       phone: phone.trim(),
       address: address.trim(),
+      email: email.trim(),
+      fax: fax.trim(),
       notes: notes.trim(),
       imageData,
     };
@@ -192,6 +198,8 @@ export const AccountsOpsDialog: React.FC<AccountsOpsDialogProps> = ({
       setName('');
       setPhone('');
       setAddress('');
+      setEmail('');
+      setFax('');
       setNotes('');
       setImageData('');
     }
@@ -334,6 +342,7 @@ export const AccountsOpsDialog: React.FC<AccountsOpsDialogProps> = ({
               ['add', 'اضافة حساب جديد'],
               ['browse', 'استعراض وتعديل'],
               ['addGroup', 'مجموعة فرعية'],
+              ['editGroup', 'تعديل خصائص المجموعة'],
               ['move', 'نقل حساب'],
               ['guide', 'دليل الحسابات'],
               ['aggregate', 'الحسابات التجميعيه'],
@@ -540,8 +549,24 @@ export const AccountsOpsDialog: React.FC<AccountsOpsDialogProps> = ({
                     </option>
                   ))}
                 </select>
-                <label className="font-bold text-[12px]">الهاتف</label>
+                <label className="font-bold text-[12px]">الهاتف / رقم الحوال</label>
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} className="erp-field w-full" />
+                <label className="font-bold text-[12px]">العنوان</label>
+                <input value={address} onChange={(e) => setAddress(e.target.value)} className="erp-field w-full" />
+                <label className="font-bold text-[12px]">البريد الإلكتروني</label>
+                <input
+                  dir="ltr"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="erp-field w-full text-left"
+                />
+                <label className="font-bold text-[12px]">الفاكس</label>
+                <input
+                  dir="ltr"
+                  value={fax}
+                  onChange={(e) => setFax(e.target.value)}
+                  className="erp-field w-full text-left"
+                />
                 <label className="font-bold text-[12px]">ملاحظات</label>
                 <textarea
                   value={notes}
@@ -737,37 +762,156 @@ export const AccountsOpsDialog: React.FC<AccountsOpsDialogProps> = ({
         )}
 
         {activeMode === 'partyImages' && (
-          <div className="flex-1 bg-white border border-[#b9c4d4] p-3 overflow-y-auto erp-scrollbar">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {partyAccounts.map((p) => {
-                const custom = customMap.get(p.code);
-                return (
-                  <div
-                    key={p.code}
-                    className="border border-[#c5cedb] bg-[#f7f9fc] p-2.5 flex flex-col items-center gap-2"
-                  >
-                    <div className="w-full h-[120px] bg-white border border-[#d6dde8] flex items-center justify-center overflow-hidden">
-                      {custom?.imageData ? (
-                        <img src={custom.imageData} alt={p.name} className="max-h-full max-w-full object-contain" />
-                      ) : (
-                        <span className="text-[36px] text-[#7c94b2]">🪪</span>
-                      )}
-                    </div>
-                    <div className="font-bold text-center">
-                      {toAr(p.code)} - {p.name}
-                    </div>
-                    <label className="erp-classic-btn px-3 py-1 text-[12px] cursor-pointer">
-                      تعيين / تحديث صورة
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleImageUpload(e, p.code)}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                );
-              })}
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-2 overflow-hidden">
+            {/* قائمة العملاء والموردين */}
+            <div className="bg-white border border-[#9aa7b8] overflow-auto erp-scrollbar">
+              <table className="w-full border-collapse text-[12px]">
+                <thead>
+                  <tr className="bg-[#5f9ea0] text-white sticky top-0">
+                    <th className="border border-[#487b7d] p-1.5 w-[110px]">الرمز</th>
+                    <th className="border border-[#487b7d] p-1.5">اسم العميل</th>
+                    <th className="border border-[#487b7d] p-1.5 w-[90px]">صورة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {partyAccounts.map((pTmp) => {
+                    const custom = customMap.get(pTmp.code);
+                    const isSel = selectedCode === pTmp.code;
+                    return (
+                      <tr
+                        key={pTmp.code}
+                        onClick={() => selectAccountForEdit(pTmp.code)}
+                        className={`cursor-pointer ${
+                          isSel ? 'bg-[#0078d7] text-white' : 'hover:bg-[#eaf3fc]'
+                        }`}
+                      >
+                        <td className="border border-[#d5dce6] p-1.5 text-center" dir="ltr">
+                          {toAr(pTmp.code)}
+                        </td>
+                        <td className="border border-[#d5dce6] p-1.5 font-bold">{pTmp.name}</td>
+                        <td className="border border-[#d5dce6] p-1.5 text-center">
+                          {custom?.imageData ? '🖼️' : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* بطاقة العميل + الصورة */}
+            <div className="bg-[#f4f6fa] border border-[#b9c4d4] p-3 flex flex-col gap-2 overflow-y-auto">
+              <div className="bg-[#5f9ea0] text-white font-bold text-center py-1">
+                صور العملاء
+              </div>
+              <div className="font-bold text-[12px] border-b border-[#cbd4e0] pb-1">
+                معلومات الزبون
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-[12px] w-[80px]">رقم الحساب</span>
+                <input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  className="erp-field flex-1 text-center"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-[12px] w-[80px]">اسم العميل</span>
+                <input value={name} onChange={(e) => setName(e.target.value)} className="erp-field flex-1" />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-[12px] w-[80px]">العنوان</span>
+                <input
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="erp-field flex-1"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-[12px] w-[80px]">الايميل</span>
+                <input
+                  dir="ltr"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="erp-field flex-1 text-left"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-[12px] w-[80px]">رقم الحوال</span>
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="erp-field flex-1"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-[12px] w-[80px]">الفاكس</span>
+                <input
+                  dir="ltr"
+                  value={fax}
+                  onChange={(e) => setFax(e.target.value)}
+                  className="erp-field flex-1 text-left"
+                />
+              </div>
+
+              <div className="h-[150px] bg-[#e6e6e6] border border-[#9aa7b8] flex items-center justify-center overflow-hidden">
+                {imageData ? (
+                  <img src={imageData} alt="صورة العميل" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-[12px] text-[#666]">لا توجد صورة محددة</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <label className="erp-classic-btn px-3 h-[28px] flex items-center cursor-pointer text-[12px]">
+                  اختيار الصورة
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => setImageData(String(reader.result || ''));
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!imageData) {
+                      onNotify('لا توجد صورة لعرضها');
+                      return;
+                    }
+                    const win = window.open();
+                    if (win) {
+                      win.document.write(
+                        `<title>صورة العميل</title><img src="${imageData}" style="max-width:100%" />`
+                      );
+                    }
+                  }}
+                  className="erp-classic-btn px-3 h-[28px] text-[12px]"
+                >
+                  عرض
+                </button>
+              </div>
+              <div className="mt-auto flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleSaveAccount}
+                  className="erp-classic-btn focused flex-1 h-[28px] font-bold"
+                >
+                  حفظ
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="erp-classic-btn flex-1 h-[28px]"
+                >
+                  خروج
+                </button>
+              </div>
             </div>
           </div>
         )}

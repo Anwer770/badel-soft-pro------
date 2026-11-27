@@ -107,6 +107,31 @@
   background: #a6a6a6;
 }
 
+/* Print only a report area (tables / statements) */
+@media print {
+  body.report-print-open * {
+    visibility: hidden;
+  }
+  body.report-print-open [data-print-report],
+  body.report-print-open [data-print-report] * {
+    visibility: visible;
+  }
+  body.report-print-open [data-print-report] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    overflow: visible !important;
+    background: #fff !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  body.report-print-open [data-print-report] .erp-scrollbar {
+    overflow: visible !important;
+  }
+}
+
 /* Print only the invoice preview paper, hide the rest of the app */
 @media print {
   body.print-preview-open * {
